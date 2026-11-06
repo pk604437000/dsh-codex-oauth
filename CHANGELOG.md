@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2-fast.1 — 2026-11-06 (wire compatibility fix)
+
+- Fix `Unsupported service_tier: fast` on the native ChatGPT-plan route: preserve `serviceTier: fast` in the UI/profile but send the catalog's Fast wire ID `priority`; Standard remains `default`.
+- Add a gateway regression reproducing the rejected literal `fast`, plus coverage for priority mapping across turns, compaction and errors without Standard retry or billing-route changes.
+- After explicit user approval, one short real request returned HTTP 200/completed with `service_tier: default` despite requesting `priority` (14 input + 5 output tokens). This confirms parameter acceptance, not actual Fast processing or speed. Keep the live profile on Standard; do not claim Fast activation from a successful HTTP response.
+- Existing profile-wide scope and requested-tier UI wording are unchanged. No additional live inference was performed beyond that one approved probe.
+
 ## 0.3.2-fast.0 — 2026-11-06 (fork prerelease)
 
 - Synchronize checksum-verified npm 0.3.1 source while preserving upstream Git history, build tooling and restored quota-login regression tests.

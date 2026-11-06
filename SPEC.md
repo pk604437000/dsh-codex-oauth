@@ -28,12 +28,12 @@
 
 目录按当前授权缓存五分钟，账户变化后失效，可手动刷新。目录请求过程中切换账户，即使随后切回，也不得将旧结果绑定到新授权。
 
-## Fast 服务档位（0.3.2-fast.0 fork）
+## Fast 服务档位（0.3.2-fast.1 fork）
 
 - Config 字段为 volatile 的 `serviceTier`，只接受 `default`（Standard，默认）和 `fast`。通过当前 profile 的 configEditor 持久化，不写入凭据文件。
 - 保存串行执行，保留无关配置；失败不更新当前选择，也不阻塞后续保存。缺少持久化编辑器时明确报错，Web 控件禁用。
 - Web 状态返回请求的服务档位和可写能力；POST `/plugins/dsh-codex-oauth/auth/service-tier?value=fast`（或 default）要求本机同源且 value 唯一、合法，失败不宣称保存成功。
-- 每个新组装的 Responses 请求读取一次档位，发送 `service_tier: "default"|"fast"`。它跨此 profile 的会话、账户和模型生效，包含工具后续调用和历史压缩；不改模型 ID、推理强度、其他 provider 或已发出的请求。
+- 每个新组装的 Responses 请求读取一次配置档位；`default` 发送 `service_tier: "default"`，界面/配置 `fast` 映射为该 ChatGPT 套餐目录声明的 `service_tier: "priority"`，而非此路由返回不支持的字面值 `fast`。它跨此 profile 的会话、账户和模型生效，包含工具后续调用和历史压缩；不改模型 ID、推理强度、其他 provider 或已发出的请求。
 - Fast 消耗更多额度；界面不宣称真实资格、实际服务档位或加速已验证。不静默降级重发 Standard、不切换 API Key；自动化只使用 mock。
 - 模型目录过滤 Responses wire 接口不支持的 ultra，保留 none/minimal/low/medium/high/xhigh/max 的原始值。
 

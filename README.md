@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast-enabled fork
 
-This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.2-fast.0**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
+This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.2-fast.1**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
 
 [English](README.md) | [中文](README.zh.md)
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.0.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.1.tgz"
 ```
 
 After installing, restart your existing DSH Web process and refresh its existing GUI URL. For TUI, replace `--profile web` with `--profile dsh-tui`, then restart that profile. Building/testing this checkout alone does not change a running DSH installation.
@@ -63,9 +63,11 @@ For Web or TUI, add this entry to the active profile's `cordis.patch.yml`, prese
     serviceTier: fast
 ```
 
-Set `serviceTier: default` to restore Standard. Only `default` and `fast` are accepted; `standard`, `priority`, and `ultrafast` are not configuration values. Fast sends `service_tier: "fast"`; Standard explicitly sends `service_tier: "default"`. This changes neither model ID nor reasoning effort. The setting covers **all subsequent calls through this plugin in the profile**, across conversations, accounts and models, including tool follow-ups and compaction. Other providers and already-sent requests are unchanged.
+Set `serviceTier: default` to restore Standard. Only `default` and `fast` are accepted; `standard`, `priority`, and `ultrafast` are not configuration values. The Fast selection sends `service_tier: "priority"`, matching the ChatGPT-plan catalog's `id: "priority", name: "Fast"`; the literal wire value `fast` was rejected on this route. Standard explicitly sends `service_tier: "default"`. This changes neither model ID nor reasoning effort. The setting covers **all subsequent calls through this plugin in the profile**, across conversations, accounts and models, including tool follow-ups and compaction. Other providers and already-sent requests are unchanged.
 
 Fast consumes more plan allowance or credits; review [current OpenAI rates and eligibility](https://learn.chatgpt.com/docs/agent-configuration/speed). The selector records the **requested** tier, not proof that a model/account supports it or that the server actually used it. A server can reject or downgrade a request. The plugin surfaces errors without silently retrying Standard or switching to API-key billing. Automated tests use mocked providers and do not establish live Fast eligibility; no real model request is part of the normal test command.
+
+**Live verification, 2026-11-06:** after explicit approval, one short request using the catalog's `priority` ID completed successfully but returned `service_tier: "default"`. It does not establish actual Fast processing. The current deployment is kept on Standard; mapping acceptance is not proof of an accelerated tier. See the [live compatibility record](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md).
 
 To roll back, choose Standard (or set `serviceTier: default`). To remove this fork entirely, reinstall the previously used upstream version and restart the profile. OAuth credentials are not converted by the service-tier setting.
 

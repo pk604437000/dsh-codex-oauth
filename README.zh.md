@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast 增强版 fork
 
-这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.2-fast.0**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
+这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.2-fast.1**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
 
 [English](README.md) | 中文
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.0.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.1.tgz"
 ```
 
 安装后重启原来的 DSH Web 进程，并刷新已有 GUI 地址。TUI 使用者将 `--profile web` 换成 `--profile dsh-tui`，再重启对应 profile。只构建和测试此仓库不会改变正在运行的 DSH 安装。
@@ -63,9 +63,11 @@ Web 和 TUI 都可在实际 profile 的 `cordis.patch.yml` 中加入以下配置
     serviceTier: fast
 ```
 
-设为 `serviceTier: default` 恢复 Standard。只接受 `default` 和 `fast`，`standard`、`priority`、`ultrafast` 均不是配置值。Fast 请求发送 `service_tier: "fast"`，Standard 明确发送 `service_tier: "default"`，不改变模型 ID 和推理强度。它影响**该 profile 内所有通过此插件发出的后续调用**，跨会话、账户和模型，包括工具后续轮次及历史压缩；不改变其他 provider 或已发送的请求。
+设为 `serviceTier: default` 恢复 Standard。只接受 `default` 和 `fast`，`standard`、`priority`、`ultrafast` 均不是配置值。Fast 选择发送 `service_tier: "priority"`，对应 ChatGPT 套餐目录的 `id: "priority", name: "Fast"`；此路由曾返回 `Unsupported service_tier: fast`。Standard 明确发送 `service_tier: "default"`，不改变模型 ID 和推理强度。它影响**该 profile 内所有通过此插件发出的后续调用**，跨会话、账户和模型，包括工具后续轮次及历史压缩；不改变其他 provider 或已发送的请求。
 
 Fast 会增加套餐额度或付费额度的消耗，具体以 [OpenAI 当前费率及资格说明](https://learn.chatgpt.com/docs/agent-configuration/speed) 为准。选择器表示的是**请求的档位**，不代表账户/模型资格已验证，也不证明服务端实际使用 Fast。服务端可能返回错误或降档；插件显示错误，不静默重发 Standard，也不切换 API Key 计费。自动化测试使用 mock，普通测试命令不会发送真实模型请求，因此不验证真实 Fast 资格。
+
+**2026-11-06 真实验证：**经用户明确同意，仅发送了一次使用目录 `priority` ID 的短请求。请求完成，但实际返回 `service_tier: "default"`，因此尚未证实 Fast 处理或加速。当前部署保留 Standard；参数被接受不等于实际 Fast 生效。[真实兼容性记录](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md)。
 
 回滚时选择 Standard，或设置 `serviceTier: default`。完整恢复上游版本时，重新安装此前使用的上游版本并重启 profile。服务档位设置不会迁移或转换 OAuth 凭据。
 

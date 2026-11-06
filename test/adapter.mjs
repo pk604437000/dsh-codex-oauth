@@ -81,6 +81,19 @@ async function fixture(t, attachments, adapterOptions = {}) {
 }
 async function collect(iterable) { const chunks = []; for await (const chunk of iterable) chunks.push(chunk); return chunks; }
 
+test("ChatGPT plan Fast uses priority instead of the rejected fast wire value", async (t) => {
+  const mock = await fixture(t, undefined, { getServiceTier: () => "fast" });
+  mock.stream = (options) => JSON.parse(options.body).service_tier === "priority"
+    ? responseStream(textEvents("OK"))
+    : json({ error: { message: "Unsupported service_tier: fast", code: "subscription_sharing_unsupported_capability" } }, 400);
+  const assembler = new BlockAssembler();
+  for (const chunk of await collect(mock.adapter.stream(mock.options))) assembler.push(chunk);
+  assert.equal(assembler.finish.kind, "stop");
+  assert.deepEqual(assembler.blocks(), [{ type: "text", text: "OK" }]);
+  assert.equal(mock.requests.length, 1);
+  assert.equal(mock.requests[0].service_tier, "priority");
+});
+
 test("default requests explicitly select the Standard service tier", async (t) => {
   const mock = await fixture(t);
   await collect(mock.adapter.stream(mock.options));
@@ -95,7 +108,7 @@ test("Fast changes service tier without changing model or reasoning and can swit
   tier = "default";
   await collect(mock.adapter.stream(options));
   assert.equal(reads, 2);
-  assert.equal(mock.requests[0].service_tier, "fast");
+  assert.equal(mock.requests[0].service_tier, "priority");
   assert.equal(mock.requests[1].service_tier, "default");
   assert.equal(mock.requests[0].model, "gpt-6.1-sol");
   assert.equal(mock.requests[0].reasoning.effort, "high");
@@ -108,7 +121,7 @@ test("Fast also applies to compaction and invalid configuration never reaches in
   let tier = "fast";
   const mock = await fixture(t, undefined, { getServiceTier: () => tier });
   await collect(mock.adapter.stream({ ...mock.options, purpose: "compaction", maxTokens: 1234 }));
-  assert.equal(mock.requests[0].service_tier, "fast");
+  assert.equal(mock.requests[0].service_tier, "priority");
   assert.equal(Object.hasOwn(mock.requests[0], "max_output_tokens"), false);
   tier = "ultrafast";
   await assert.rejects(collect(mock.adapter.stream(mock.options)), (error) => error.code === "UNSUPPORTED_OPTION");
@@ -121,7 +134,7 @@ test("Fast rejection is surfaced without retrying Standard or another billing ro
     mock.stream = () => json({ error: { message: "Fast unavailable", code: "unsupported_service_tier" } }, status);
     await assert.rejects(collect(mock.adapter.stream(mock.options)), (error) => error.failure.status === status);
     assert.equal(mock.requests.length, 1);
-    assert.equal(mock.requests[0].service_tier, "fast");
+    assert.equal(mock.requests[0].service_tier, "priority");
   }
 });
 
