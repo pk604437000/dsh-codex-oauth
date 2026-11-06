@@ -28,7 +28,7 @@
 
 目录按当前授权缓存五分钟，账户变化后失效，可手动刷新。目录请求过程中切换账户，即使随后切回，也不得将旧结果绑定到新授权。
 
-## 会话级 Fast 服务档位（0.3.3-fast.0 fork）
+## 会话级 Fast 服务档位（0.3.3-fast.1 fork）
 
 - Config 字段 `serviceTier` 为 volatile 的 profile 默认，只接受 `default`（Standard，默认）和 `fast`；新增 volatile `sessionServiceTiers` 字典按真实 sessionId 保存显式 default/fast，缺键即继承。通过当前 profile 的 configEditor 持久化，不写凭据或会话日志，不随单独日志导出。
 - 保存串行执行，保留无关配置；失败不更新当前选择，也不阻塞后续保存。缺少持久化编辑器时明确报错，Web 控件禁用。

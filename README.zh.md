@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast 增强版 fork
 
-这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.3-fast.0**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
+这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.3-fast.1**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
 
 [English](README.md) | 中文
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.0.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.1.tgz"
 ```
 
 安装后重启原来的 DSH Web 进程，并刷新已有 GUI 地址。TUI 使用者将 `--profile web` 换成 `--profile dsh-tui`，再重启对应 profile。只构建和测试此仓库不会改变正在运行的 DSH 安装。

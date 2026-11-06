@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3-fast.1 — 2026-11-07 (native client dependency declaration)
+
+- Declare `remote` and `remote.session` on the session-control scope that consumes the shared model directory, matching the native SDK namespace access contract.
+- Add a namespace-enforcing interaction regression for first-time model-directory creation. Keep settings-only behavior independent of the session namespace.
+- Preserve per-session persistence, default-invalidation replay, and Fast-to-priority mapping; no further real inference probes.
+
 ## 0.3.3-fast.0 — 2026-11-06 (per-session requested tiers)
 
 - Add independent per-session Inherit default / Standard / Fast choices in the conversation input bar beside the model picker, with English/Chinese labels.

@@ -59,8 +59,20 @@ async function fixture(t, options = {}) {
     locale: { register(name, values) { dictionaries.set(name, values); return () => {}; } },
     effect(fn) { return fn(); },
     sessions: { binding(id) { return id ? { sessionId: id } : undefined; }, subagentAddress(id) { return options.unavailable?.includes(id) ? { mode: "readonly" } : undefined; } },
+    remote: { session: {} },
     modelDirectories: { directoryFor },
-    inject(deps, callback) { if (deps.every((name) => ctx[name] !== undefined)) return callback(ctx); },
+    inject(deps, callback) {
+      const resolve = (name) => name.split(".").reduce((value, key) => value?.[key], ctx);
+      if (!deps.every((name) => resolve(name) !== undefined)) return;
+      const scope = Object.create(ctx);
+      if (options.strictDirectoryNamespace) scope.modelDirectories = { directoryFor(id) {
+        // The SDK lazily creates a directory using the consumer's remote.session.
+        const granted = new Set([...client.inject, ...deps]);
+        if (!granted.has("remote.session")) throw new Error('cannot get property "remote.session" without inject');
+        return directoryFor(id);
+      } };
+      return callback(scope);
+    },
   };
   client.apply(ctx);
   const { createRoot } = await import("react-dom/client");
@@ -95,6 +107,13 @@ async function fixture(t, options = {}) {
     async remount(ids) { await act(async () => root.unmount()); root = createRoot(container); await view(ids); },
   };
 }
+
+test("session slot supplies the remote namespace required to create a model directory", async (t) => {
+  const f = await fixture(t, { strictDirectoryNamespace: true });
+  assert.equal(f.selected("session-A"), "inherit");
+  await f.change("session-A", "fast");
+  assert.equal(f.backend("session-A"), "fast");
+});
 
 test("composer controls save two independent sessions and reload their persisted choices", async (t) => {
   const f = await fixture(t);

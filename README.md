@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast-enabled fork
 
-This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.3-fast.0**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
+This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.3-fast.1**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
 
 [English](README.md) | [中文](README.zh.md)
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.0.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.1.tgz"
 ```
 
 After installing, restart your existing DSH Web process and refresh its existing GUI URL. For TUI, replace `--profile web` with `--profile dsh-tui`, then restart that profile. Building/testing this checkout alone does not change a running DSH installation.

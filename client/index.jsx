@@ -162,7 +162,7 @@ export const inject = ["slots", "locale"];
 export function apply(ctx) {
   ctx.effect(() => ctx.locale.register(SESSION_TIER_LOCALE, sessionTierMessages), "codex: session tier dictionaries");
   ctx.slots.inject("settings.section", () => ctx.slots.register({ name: "settings.section", id: "dsh-codex-oauth", order: 15, label: () => "OpenAI Codex" }, CodexSettings));
-  ctx.inject(["slots", "sessions", "modelDirectories"], (scope) => {
+  ctx.inject(["slots", "sessions", "modelDirectories", "remote", "remote.session"], (scope) => {
     scope.slots.inject("conversation.input.right", () => scope.slots.register({
       name: "conversation.input.right", id: "dsh-codex-session-service-tier", order: 40, locale: SESSION_TIER_LOCALE,
       inject: (sessionId) => {
