@@ -6,7 +6,7 @@
 - Persist `sessionServiceTiers` in this plugin's volatile profile Config through ConfigEditor; retain `serviceTier` as fallback and preserve unrelated sessions/configuration.
 - Resolve each request from its explicit sessionId once; ordinary/tool-follow-up/manual/automatic compaction requests retain the session's tier. No-identity calls use the default, and forks/children start independent.
 - Add guarded local GET/POST session tier routes, existing live/cold session validation without Agent activation, and disabled behavior where session persistence is unavailable.
-- Isolate UI reads/writes by session identity and generation; preserve confirmed values after failures and prevent stale poll responses from undoing saves.
+- Isolate UI reads/writes by session identity and generation; preserve confirmed values after failures and prevent stale poll responses from undoing saves. Replay default-change invalidations after pending save responses settle, preserving write errors.
 - This is requested-tier selection, not proof of upstream Fast processing. No additional real inference probes were sent for this feature.
 
 ## 0.3.2-fast.1 — 2026-11-06 (wire compatibility fix)

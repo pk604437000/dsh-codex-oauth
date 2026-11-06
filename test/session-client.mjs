@@ -12,6 +12,7 @@ async function fixture(t, options = {}) {
   const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   const choices = new Map(Object.entries(options.choices ?? {})), calls = [], timers = new Set(), readGates = new Map(), saveGates = new Map(), directories = new Map(), dictionaries = new Map();
+  const responseGates = new Map();
   let defaultTier = options.defaultTier ?? "default", failSave = false, client, slot, Settings;
   const snapshot = (id) => ({ sessionId: id === options.wrongSession ? "another-session" : id, selection: choices.get(id) ?? "inherit", effectiveTier: choices.get(id) ?? defaultTier, defaultTier, writable: options.writable !== false });
   const fetch = async (raw, request = {}) => {
@@ -26,11 +27,15 @@ async function fixture(t, options = {}) {
     assert.equal(url.pathname, SESSION_PATH);
     assert(id && id !== "undefined", "unbound sessions must not make tier requests");
     if (method === "POST") {
-      if (failSave) return { ok: false, json: async () => ({ error: "disk full" }) };
+      const response = (saved, ok = true) => {
+        const gate = responseGates.get(id); responseGates.delete(id);
+        return { ok, async json() { await gate; return saved; } };
+      };
+      if (failSave) return response({ error: "disk full" }, false);
       const gate = saveGates.get(id); saveGates.delete(id); await gate;
       const value = url.searchParams.get("value");
       if (value === "inherit") choices.delete(id); else choices.set(id, value);
-      return { ok: true, json: async () => snapshot(id) };
+      return response(snapshot(id));
     }
     assert.equal(method, "GET");
     const saved = snapshot(id), gate = readGates.get(id); readGates.delete(id);
@@ -84,6 +89,7 @@ async function fixture(t, options = {}) {
     failSaves() { failSave = true; },
     deferRead(id) { let release; readGates.set(id, new Promise((resolve) => { release = resolve; })); return release; },
     deferSave(id) { let release; saveGates.set(id, new Promise((resolve) => { release = resolve; })); return release; },
+    deferSaveResponse(id) { let release; responseGates.set(id, new Promise((resolve) => { release = resolve; })); return release; },
     async poll() { const pending = []; await act(async () => { for (const timer of [...timers]) pending.push(timer.callback()); await Promise.resolve(); }); return pending; },
     async settle(release, pending = []) { await act(async () => { release(); await Promise.all(pending); }); },
     async remount(ids) { await act(async () => root.unmount()); root = createRoot(container); await view(ids); },
@@ -138,6 +144,31 @@ test("a pending save remains bound to A when the visible component switches to B
   await f.view(["session-B"]); await f.settle(release);
   assert.equal(f.backend("session-A"), "fast"); assert.equal(f.backend("session-B"), undefined);
   assert.equal(f.selected("session-B"), "inherit");
+});
+
+test("default invalidation during a pending session response is replayed after success", async (t) => {
+  const f = await fixture(t, { choices: { "session-A": "fast" }, withSettings: true });
+  const release = f.deferSaveResponse("session-A");
+  await f.change("session-A", "inherit");
+  assert.equal(f.backend("session-A"), undefined);
+  await f.changeDefault("fast");
+  await f.settle(release);
+  assert.equal(f.selected("session-A"), "inherit");
+  assert.match(f.select("session-A").selectedOptions[0].textContent, /Fast/);
+  assert.equal(f.select("session-A").disabled, false);
+});
+
+test("failed session response replays a pending default change without hiding the write error", async (t) => {
+  const f = await fixture(t, { withSettings: true });
+  f.failSaves();
+  const release = f.deferSaveResponse("session-A");
+  await f.change("session-A", "fast");
+  await f.changeDefault("fast");
+  await f.settle(release);
+  assert.equal(f.selected("session-A"), "inherit");
+  assert.match(f.select("session-A").selectedOptions[0].textContent, /Fast/);
+  assert.match(f.container.textContent, /disk full/);
+  assert.equal(f.select("session-A").disabled, false);
 });
 
 test("failed session saves retain the previous selection and restore the control", async (t) => {

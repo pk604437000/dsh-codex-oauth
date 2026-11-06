@@ -35,18 +35,18 @@ function SessionTierInstance({ sessionId, directory, loadModel, available = fals
   const codex = model.current?.provider === "openai-codex";
   const ready = available && typeof sessionId === "string" && sessionId.length > 0 && codex;
   const [state, setState] = useState({ snapshot: null, error: "", busy: false });
-  const sequence = useRef(0), alive = useRef(false), saving = useRef(false), reads = useRef(new Set());
+  const sequence = useRef(0), alive = useRef(false), saving = useRef(false), reads = useRef(new Set()), invalidated = useRef(false);
   const current = (generation) => alive.current && generation === sequence.current;
   useEffect(() => { if (available && sessionId) Promise.resolve(loadModel?.()).catch(() => {}); }, [available, sessionId, loadModel]);
-  const refresh = useCallback(() => {
+  const refresh = useCallback((preserveError = false) => {
     if (!ready || saving.current) return Promise.resolve();
     const generation = ++sequence.current;
     const controller = new AbortController(); reads.current.add(controller);
     return request(sessionId, undefined, controller.signal).then((value) => {
       const next = snapshot(value, sessionId);
-      if (current(generation)) setState({ snapshot: next, error: "", busy: false });
+      if (current(generation)) setState((previous) => ({ snapshot: next, error: preserveError ? previous.error : "", busy: false }));
     }).catch((error) => {
-      if (current(generation) && !controller.signal.aborted) setState((previous) => ({ ...previous, error: error.message }));
+      if (current(generation) && !controller.signal.aborted) setState((previous) => ({ ...previous, error: preserveError && previous.error ? previous.error : error.message }));
     }).finally(() => reads.current.delete(controller));
   }, [ready, sessionId, request]);
   useEffect(() => {
@@ -54,10 +54,14 @@ function SessionTierInstance({ sessionId, directory, loadModel, available = fals
     setState((previous) => ({ ...previous, busy: false }));
     if (ready) refresh();
     const timer = ready ? setInterval(refresh, 30_000) : undefined;
-    const changed = (event) => { if (!event.detail?.sessionId || event.detail.sessionId === sessionId) refresh(); };
+    const changed = (event) => {
+      if (event.detail?.sessionId && event.detail.sessionId !== sessionId) return;
+      if (saving.current) invalidated.current = true;
+      else refresh();
+    };
     if (ready) window.addEventListener(SERVICE_TIER_EVENT, changed);
     return () => {
-      alive.current = false; saving.current = false; sequence.current++;
+      alive.current = false; saving.current = false; invalidated.current = false; sequence.current++;
       for (const controller of reads.current) controller.abort();
       reads.current.clear();
       if (timer !== undefined) clearInterval(timer);
@@ -75,7 +79,12 @@ function SessionTierInstance({ sessionId, directory, loadModel, available = fals
     } catch (error) {
       if (current(generation)) setState((previous) => ({ ...previous, error: error.message }));
     } finally {
-      if (current(generation)) { saving.current = false; setState((previous) => ({ ...previous, busy: false })); }
+      if (current(generation)) {
+        saving.current = false;
+        setState((previous) => ({ ...previous, busy: false }));
+        // Replay defaults/peer-pane invalidations only after this write settles.
+        if (invalidated.current) { invalidated.current = false; refresh(true); }
+      }
     }
   };
   if (!ready) return null;
