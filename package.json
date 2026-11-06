@@ -1,36 +1,77 @@
 {
   "name": "dsh-codex-oauth",
-  "version": "0.3.1",
+  "version": "0.3.2-fast.0",
   "description": "Use ChatGPT plan models in DeepSeek Harness through native OAuth and Responses",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eons2long/dsh-codex-oauth.git"
+    "url": "git+https://github.com/pk604437000/dsh-codex-oauth.git"
   },
-  "homepage": "https://github.com/eons2long/dsh-codex-oauth#readme",
+  "homepage": "https://github.com/pk604437000/dsh-codex-oauth#readme",
   "bugs": {
-    "url": "https://github.com/eons2long/dsh-codex-oauth/issues"
+    "url": "https://github.com/pk604437000/dsh-codex-oauth/issues"
   },
-  "keywords": ["dsh-plugin", "deepseek-harness", "openai-codex", "oauth"],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "openai-codex",
+    "oauth"
+  ],
   "license": "MIT",
-  "scripts": { "build": "node scripts/build-client.mjs", "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs", "test:live": "node scripts/verify-live.mjs" },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs test/client.mjs",
+    "test:live": "node scripts/verify-live.mjs"
+  },
   "type": "module",
   "main": "lib/index.js",
-  "bin": { "dsh-openai-codex": "bin/dsh-openai-codex.js" },
-  "exports": { ".": "./lib/index.js", "./client": "./lib/client.js", "./cordis.patch.yml": "./cordis.patch.yml", "./package.json": "./package.json" },
-  "files": ["lib", "bin", "client", "scripts/patch-tui-quota-placement.mjs", "cordis.patch.yml", "README.md", "README.zh.md", "CHANGELOG.md", "SPEC.md", "LICENSE"],
+  "bin": {
+    "dsh-openai-codex": "bin/dsh-openai-codex.js"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "client",
+    "scripts/patch-tui-quota-placement.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "CHANGELOG.md",
+    "SPEC.md",
+    "docs/upstream/npm-0.3.1.md",
+    "LICENSE"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
-      "inject": ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-locale"],
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale"
+      ],
       "platform": "web"
     }
   },
-  "devDependencies": { "esbuild": "^0.28.2", "@deepseek-ai/dsh-compaction-basic": "0.2.0-rc.2" },
-  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "@deepseek-ai/dsh-compaction-basic": "0.2.0-rc.2",
+    "esbuild": "^0.28.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/schemastery": "^3.18.5",
     "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.2",
-    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2"
+    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.5"
   }
 }

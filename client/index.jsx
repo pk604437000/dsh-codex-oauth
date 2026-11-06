@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ServiceTierControl } from "./service-tier.jsx";
 
 const BASE = "/plugins/dsh-codex-oauth/auth";
 const h = React.createElement;
@@ -95,6 +96,15 @@ function CodexSettings() {
     catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
   };
+  const changeServiceTier = async (value) => {
+    setBusy(true); setNotice("");
+    try {
+      const result = await request(`service-tier?value=${encodeURIComponent(value)}`, "POST");
+      setState((current) => ({ ...current, serviceTier: result.serviceTier }));
+      setNotice(`Service tier saved: ${result.serviceTier === "fast" ? "Fast" : "Standard"} (requested).`);
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  };
   const signedIn = state.authenticated && state.planUsage;
   useEffect(() => {
     if (!signedIn) return undefined;
@@ -120,6 +130,8 @@ function CodexSettings() {
       h("span", null, "Using ChatGPT plan"),
       h("a", { href: "https://chatgpt.com/settings/usage", target: "_blank", rel: "noopener noreferrer" }, "Manage usage"),
       h("button", { type: "button", disabled: busy, onClick: refreshModels }, "Refresh models")) : null,
+    h(ServiceTierControl, { value: state.serviceTier ?? "default", writable: state.serviceTierWritable === true,
+      disabled: busy || signingIn || quotaSigningIn || state.status === "loading", onChange: changeServiceTier }),
     signedIn ? h(QuotaPanel, { quota: state.quota }) : null,
     signedIn ? h("div", { style: { display: "flex", gap: 8 } },
       quotaSigningIn && state.challenge ? h("button", { type: "button", disabled: busy, onClick: () => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2-fast.0 — 2026-11-06 (fork prerelease)
+
+- Synchronize checksum-verified npm 0.3.1 source while preserving upstream Git history, build tooling and restored quota-login regression tests.
+- Preserve the local compatibility fix that filters unsupported `ultra` reasoning from the live model catalog.
+- Add volatile profile configuration `serviceTier: default|fast`, defaulting to Standard. Persist changes with DSH's configuration editor, preserving unrelated settings and serializing writes.
+- Send the requested Responses `service_tier` independently of model and reasoning; apply the profile choice to later turns and compaction without rewriting in-flight requests.
+- Add a guarded Web service-tier endpoint and a Standard / Fast selector with saving/error states and usage/eligibility explanations.
+- Add request, persistence, boundary and React rendering tests; retain the native OAuth and companion quota behavior of 0.3.1.
+- This fork has not been published to npm. Automated verification uses mocks, not live model calls or an assertion of account Fast eligibility. Building it does not update a running DSH installation.
+
 ## 0.3.1 — 2026-10-25
 
 - Show TUI Codex quota only when the active model route is `openai-codex` (`~/.dsh-tui/model.json`, with a fallback after a Codex call). Other providers no longer display Codex usage or run background quota lookups.

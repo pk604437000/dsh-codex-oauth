@@ -1,4 +1,6 @@
-# dsh-codex-oauth
+# dsh-codex-oauth — Fast 增强版 fork
+
+这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.2-fast.0**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
 
 [English](README.md) | 中文
 
@@ -10,24 +12,18 @@
 
 要求 Node.js 22 及以上，以及与 DSH `0.2.0-rc.2` 兼容的 `dsh-llm` 和 `dsh-atomic-write`。0.3 不再兼容 DSH 0.1 的旧适配器接口。
 
-安装到实际使用的 profile：
+此 Fast 预发布版未发布到 npm。先构建 fork，再把本地安装包添加到实际使用的 profile；已有源码目录时跳过 clone：
 
 ```bash
-dsh plugin --profile dsh-tui add -w dsh-codex-oauth@^0.3.0
-dsh --profile dsh-tui
-```
-
-从源码目录构建安装：
-
-```bash
-npm install
-npm run build
+git clone --branch feat/fast-mode https://github.com/pk604437000/dsh-codex-oauth.git
+cd dsh-codex-oauth
+npm ci --ignore-scripts
+npm test
 npm pack --ignore-scripts
-dsh plugin --profile dsh-tui add -w "file:$PWD/dsh-codex-oauth-0.3.1.tgz"
-dsh --profile dsh-tui
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.0.tgz"
 ```
 
-Web 界面使用 `--profile web` 安装，再运行 `dsh web`。
+安装后重启原来的 DSH Web 进程，并刷新已有 GUI 地址。TUI 使用者将 `--profile web` 换成 `--profile dsh-tui`，再重启对应 profile。只构建和测试此仓库不会改变正在运行的 DSH 安装。
 
 使用安装包也能避免升级已有源码安装时，pnpm 继续复用旧本地目录的文件列表。
 
@@ -54,6 +50,24 @@ dsh plugin --profile dsh-tui exec dsh-openai-codex models --refresh
 Web 界面打开 **设置 → OpenAI Codex**，点击 **Continue with ChatGPT**，授权后返回。设置页支持账户选择、取消登录、退出登录、刷新模型列表和[管理用量](https://chatgpt.com/settings/usage)。如果只授权了账户身份，会单独显示未授权套餐使用；再次登录即可请求该授权。
 
 在 DSH 模型选择器中选择 `openai-codex`。模型列表直接来自当前账户，因此账户支持 GPT-6.1 Sol 等新模型时，无需更新插件内的静态列表。插件保留服务端名称与排序，缓存五分钟，也可手动刷新。
+
+## Standard / Fast 服务档位
+
+在 **设置 → OpenAI Codex → Service tier** 中选择 **Standard** 或 **Fast**，默认 Standard。保存成功后写入此插件的 DSH profile 配置，对后续请求生效，无需重启 profile。保存中禁用选择器；保存失败保留原选择并显示错误。宿主缺少持久化配置编辑器时，控件禁用，可直接编辑 profile。
+
+Web 和 TUI 都可在实际 profile 的 `cordis.patch.yml` 中加入以下配置，保留其他已有配置：
+
+```yaml
+- id: llm-codex-oauth
+  config:
+    serviceTier: fast
+```
+
+设为 `serviceTier: default` 恢复 Standard。只接受 `default` 和 `fast`，`standard`、`priority`、`ultrafast` 均不是配置值。Fast 请求发送 `service_tier: "fast"`，Standard 明确发送 `service_tier: "default"`，不改变模型 ID 和推理强度。它影响**该 profile 内所有通过此插件发出的后续调用**，跨会话、账户和模型，包括工具后续轮次及历史压缩；不改变其他 provider 或已发送的请求。
+
+Fast 会增加套餐额度或付费额度的消耗，具体以 [OpenAI 当前费率及资格说明](https://learn.chatgpt.com/docs/agent-configuration/speed) 为准。选择器表示的是**请求的档位**，不代表账户/模型资格已验证，也不证明服务端实际使用 Fast。服务端可能返回错误或降档；插件显示错误，不静默重发 Standard，也不切换 API Key 计费。自动化测试使用 mock，普通测试命令不会发送真实模型请求，因此不验证真实 Fast 资格。
+
+回滚时选择 Standard，或设置 `serviceTier: default`。完整恢复上游版本时，重新安装此前使用的上游版本并重启 profile。服务档位设置不会迁移或转换 OAuth 凭据。
 
 ## 多账户与凭据
 
