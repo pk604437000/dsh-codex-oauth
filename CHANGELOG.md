@@ -7,7 +7,9 @@
 - Add volatile profile configuration `serviceTier: default|fast`, defaulting to Standard. Persist changes with DSH's configuration editor, preserving unrelated settings and serializing writes.
 - Send the requested Responses `service_tier` independently of model and reasoning; apply the profile choice to later turns and compaction without rewriting in-flight requests.
 - Add a guarded Web service-tier endpoint and a Standard / Fast selector with saving/error states and usage/eligibility explanations.
-- Add request, persistence, boundary and React rendering tests; retain the native OAuth and companion quota behavior of 0.3.1.
+- Add request, persistence, boundary, React rendering and offline parent-interaction tests; retain the native OAuth and companion quota behavior of 0.3.1.
+- Discard stale/out-of-order status polls across service-tier writes and preserve the last confirmed tier on transient read errors, so the UI cannot display Standard while the saved profile remains Fast.
+- Explicitly include the tested DSH 0.2.1-rc.5 peer version for strict npm consumers while retaining the original 0.2.0-rc.2 floor; DSH's host-provided prerelease compatibility remains unchanged.
 - This fork has not been published to npm. Automated verification uses mocks, not live model calls or an assertion of account Fast eligibility. Building it does not update a running DSH installation.
 
 ## 0.3.1 — 2026-10-25

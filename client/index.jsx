@@ -32,6 +32,7 @@ function CodexSettings() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const authorization = useRef({ popup: null, url: null });
+  const statusGeneration = useRef(0);
   const openChallenge = (challenge, popup = authorization.current.popup) => {
     if (!popup || popup.closed) return;
     if (authorization.current.url === challenge.url) return;
@@ -41,7 +42,14 @@ function CodexSettings() {
   useEffect(() => {
     if (state.challenge) openChallenge(state.challenge);
   }, [state.challenge?.url]);
-  const refresh = useCallback(() => request("status").then(setState).catch((error) => setState({ status: "error", message: error.message })), []);
+  const refresh = useCallback(() => {
+    const generation = ++statusGeneration.current;
+    return request("status").then((value) => {
+      if (generation === statusGeneration.current) setState(value);
+    }).catch((error) => {
+      if (generation === statusGeneration.current) setState((current) => ({ ...current, status: "error", message: error.message }));
+    });
+  }, []);
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!["signing-in", "quota-signing-in"].includes(state.status)) return undefined;
@@ -97,13 +105,15 @@ function CodexSettings() {
     finally { setBusy(false); }
   };
   const changeServiceTier = async (value) => {
+    // Invalidate polls captured before this write, then any started during it.
+    statusGeneration.current++;
     setBusy(true); setNotice("");
     try {
       const result = await request(`service-tier?value=${encodeURIComponent(value)}`, "POST");
       setState((current) => ({ ...current, serviceTier: result.serviceTier }));
       setNotice(`Service tier saved: ${result.serviceTier === "fast" ? "Fast" : "Standard"} (requested).`);
     } catch (error) { setNotice(error.message); }
-    finally { setBusy(false); }
+    finally { statusGeneration.current++; setBusy(false); }
   };
   const signedIn = state.authenticated && state.planUsage;
   useEffect(() => {

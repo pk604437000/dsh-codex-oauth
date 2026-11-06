@@ -10,7 +10,7 @@
 
 ## 要求与安装
 
-要求 Node.js 22 及以上，以及与 DSH `0.2.0-rc.2` 兼容的 `dsh-llm` 和 `dsh-atomic-write`。0.3 不再兼容 DSH 0.1 的旧适配器接口。
+要求 Node.js 22 及以上，以及与 DSH `0.2.0-rc.2` 兼容的 `dsh-llm` 和 `dsh-atomic-write`。0.3 不再兼容 DSH 0.1 的旧适配器接口。自动化集成也覆盖当前 DSH `0.2.1-rc.5` 的宿主依赖；peer 范围明确接受这个已验证的预发布版本，兼容严格 npm 消费者。
 
 此 Fast 预发布版未发布到 npm。先构建 fork，再把本地安装包添加到实际使用的 profile；已有源码目录时跳过 clone：
 

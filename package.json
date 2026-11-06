@@ -19,7 +19,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build-client.mjs",
-    "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs test/client.mjs",
+    "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs test/client.mjs test/client-interaction.mjs",
     "test:live": "node scripts/verify-live.mjs"
   },
   "type": "module",
@@ -62,6 +62,7 @@
   "devDependencies": {
     "@deepseek-ai/dsh-compaction-basic": "0.2.0-rc.2",
     "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -70,8 +71,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.2",
-    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.2 || 0.2.1-rc.5",
+    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2 || 0.2.1-rc.5",
     "@deepseek-ai/schemastery": "^3.18.5"
   }
 }

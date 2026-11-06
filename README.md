@@ -10,7 +10,7 @@ The plugin handles browser authorization, account selection, rotating token refr
 
 ## Requirements and installation
 
-Requires Node.js 22 or newer and DSH `0.2.0-rc.2` compatible `dsh-llm` and `dsh-atomic-write` packages. Version 0.3 no longer supports the old DSH 0.1 adapter contract.
+Requires Node.js 22 or newer and DSH `0.2.0-rc.2` compatible `dsh-llm` and `dsh-atomic-write` packages. Version 0.3 no longer supports the old DSH 0.1 adapter contract. Automated integration also covers the current DSH `0.2.1-rc.5` host packages; peer ranges explicitly accept that tested prerelease for strict npm consumers.
 
 This Fast prerelease is not published to npm. Build the fork, then install its archive into the profile you actually use. Skip cloning when you already have this checkout:
 
