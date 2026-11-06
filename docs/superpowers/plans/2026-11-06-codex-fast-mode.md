@@ -52,11 +52,11 @@
 - Consumes: upstream `ca5b8b4`、npm `https://registry.npmjs.org/dsh-codex-oauth/0.3.1` 与其 tarball/SRI。
 - Produces: 官方 0.3.1 的 companion modules、`getCompanionCredential(store, options)`、额度 registration 校验、原有 adapter 与 auth API；完整测试命令不再引用缺失文件。
 
-- [ ] **Step 1: Add the missing baseline tests before importing source.** `test/companion-auth.mjs` 覆盖并发 refresh 只轮换一次、terminal refresh 仅清除额度登录、错误账户不发请求、临时失败保留凭据；quota fixtures 提供可刷新凭据和唯一 client 注册，验证查询失败清空旧快照、TUI 非 Codex 路由不轮询。所有 token 使用本地构造的测试值。
-- [ ] **Step 2: Install existing development/peer dependencies with lifecycle scripts disabled and run the new tests.** Run `npm install --ignore-scripts`，再运行 `node --test test/companion-auth.mjs test/quota.mjs`。Expected: new contract tests fail against 0.3.0（缺少 companion module / old quota behavior）；记录真实失败，不将依赖失败当作功能失败。
-- [ ] **Step 3: Import verified source only.** 下载 npm 指定的 0.3.1 tarball 并校验 metadata 中的 SHA-512 SRI；解包时只允许已知的源文件、文档、元数据路径，拒绝链接、路径穿越与凭据路径。覆盖已有文件前先读取；保留仓库独有测试、构建工具和忽略规则。记录来源，不把本机 models.js 补丁冒充发布版。
-- [ ] **Step 4: Align fixtures with the released 0.3.1 contract, then run the full existing suite.** Run `npm test`。Expected: all baseline tests pass，无真实网络或模型调用。若 registry 依赖不能覆盖当前 DSH 的 prerelease 范围，只增加明确的兼容范围与测试版本，不降低既有最低要求。
-- [ ] **Step 5: Commit verified baseline + regression coverage.** Commit `chore: sync verified npm 0.3.1 baseline and regression tests`。
+- [x] **Step 1: Add the missing baseline tests before importing source.** `test/companion-auth.mjs` 覆盖并发 refresh 只轮换一次、terminal refresh 仅清除额度登录、错误账户不发请求、临时失败保留凭据；quota fixtures 提供可刷新凭据和唯一 client 注册，验证查询失败清空旧快照、TUI 非 Codex 路由不轮询。所有 token 使用本地构造的测试值。
+- [x] **Step 2: Install existing development/peer dependencies with lifecycle scripts disabled and run the new tests.** Run `npm install --ignore-scripts`，再运行 `node --test test/companion-auth.mjs test/quota.mjs`。Expected: new contract tests fail against 0.3.0（缺少 companion module / old quota behavior）；记录真实失败，不将依赖失败当作功能失败。
+- [x] **Step 3: Import verified source only.** 下载 npm 指定的 0.3.1 tarball 并校验 metadata 中的 SHA-512 SRI；解包时只允许已知的源文件、文档、元数据路径，拒绝链接、路径穿越与凭据路径。覆盖已有文件前先读取；保留仓库独有测试、构建工具和忽略规则。记录来源，不把本机 models.js 补丁冒充发布版。
+- [x] **Step 4: Align fixtures with the released 0.3.1 contract, then run the full existing suite.** Run `npm test`。Expected: all baseline tests pass，无真实网络或模型调用。若 registry 依赖不能覆盖当前 DSH 的 prerelease 范围，只增加明确的兼容范围与测试版本，不降低既有最低要求。
+- [x] **Step 5: Commit verified baseline + regression coverage.** Commit `chore: sync verified npm 0.3.1 baseline and regression tests`。
 
 ### Task 2: Preserve the unsupported ultra reasoning fix
 
@@ -66,11 +66,11 @@
 - Consumes: Task 1 `CodexModelCatalog`。
 - Produces: 只发布 wire 接口支持的推理档位 `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`，不发布 `ultra`；被过滤的默认档位不再作为默认值。
 
-- [ ] **Step 1: Add test `catalog excludes unsupported ultra without rewriting supported effort IDs`.** 在 mock 模型列表中加入 ultra 和上述有效档位；断言 ultra 不出现，有效值原样保留，非法 defaultEffort 不保留。
-- [ ] **Step 2: Run `node --test --test-name-pattern='unsupported ultra' test/adapter.mjs`.** Expected: FAIL because 0.3.1 currently exposes ultra。
-- [ ] **Step 3: Add the known wire-effort allowlist to `modelInfo(entry)` in `lib/models.js`.** 不修改推理请求的其他语义。
-- [ ] **Step 4: Re-run the targeted test and full adapter suite.** Expected: PASS。
-- [ ] **Step 5: Commit `fix: filter unsupported reasoning efforts from Codex catalog`.**
+- [x] **Step 1: Add test `catalog excludes unsupported ultra without rewriting supported effort IDs`.** 在 mock 模型列表中加入 ultra 和上述有效档位；断言 ultra 不出现，有效值原样保留，非法 defaultEffort 不保留。
+- [x] **Step 2: Run `node --test --test-name-pattern='unsupported ultra' test/adapter.mjs`.** Expected: FAIL because 0.3.1 currently exposes ultra。
+- [x] **Step 3: Add the known wire-effort allowlist to `modelInfo(entry)` in `lib/models.js`.** 不修改推理请求的其他语义。
+- [x] **Step 4: Re-run the targeted test and full adapter suite.** Expected: PASS。
+- [x] **Step 5: Commit `fix: filter unsupported reasoning efforts from Codex catalog`.**
 
 ### Task 3: Implement persistent profile service tier and guarded backend endpoints
 
@@ -84,12 +84,12 @@
 - `registerWebAuth(ctx, credentials, { adapter, serviceTier, ...existing })` 保留旧接口；status 增加 `serviceTier` 和 `serviceTierWritable`。
 - `AUTH_SERVICE_TIER_PATH='/plugins/dsh-codex-oauth/auth/service-tier'`；POST query 必须唯一 `value=default|fast`，返回 `{serviceTier}`；非法/重复参数 400，缺少持久化能力 503，保存失败沿既有错误边界报告，不伪装成功。
 
-- [ ] **Step 1: Write red tests for configuration and saves.** `default tier is Standard`; `invalid tiers fail before writes`; `save preserves unrelated config`; `failed save keeps current tier`; `concurrent saves serialize and recover after rejection`; `real Cordis Config references resolve default and fast`。mock editor 只有保存成功才更新 ref。
-- [ ] **Step 2: Write red request tests.** 默认请求 service_tier=default；getter=fast 时仅档位改变；两轮之间切回 default；reasoning.effort=high 原样保留；压缩请求采用 fast；无效 getter 不发 inference；服务器 400/403/429 不回退也不额外请求。Run `node --test test/service-tier.mjs test/adapter.mjs`，确认是缺失功能导致 FAIL。
-- [ ] **Step 3: Implement control + Config + request mapping through the declared interfaces.** `save` 使用 promise 队列，失败不使队列永久拒绝；不调用 setter 假造落盘成功。getter 在请求组装时只读取一次；生命周期仍由现有插件负责。
-- [ ] **Step 4: Write red route tests before implementing routes.** 验证同源成功后 status 可读、重建控制器仍读持久配置；wrong method/foreign host/origin/remote address/cross-site 在任何保存前拒绝；缺失/重复/非法 value 400；editor 不可用 503；磁盘错误无成功状态且不泄漏凭据。Run `node --test test/web-auth.mjs`，确认 FAIL。
-- [ ] **Step 5: Implement route and status wiring, then run `node --test test/service-tier.mjs test/adapter.mjs test/web-auth.mjs` and `npm test`.** Expected: PASS；OAuth 路由、注销、quota controls 和工具 replay 不倒退。
-- [ ] **Step 6: Commit `feat: persist Codex service tier and request Fast processing`.**
+- [x] **Step 1: Write red tests for configuration and saves.** `default tier is Standard`; `invalid tiers fail before writes`; `save preserves unrelated config`; `failed save keeps current tier`; `concurrent saves serialize and recover after rejection`; `real Cordis Config references resolve default and fast`。mock editor 只有保存成功才更新 ref。
+- [x] **Step 2: Write red request tests.** 默认请求 service_tier=default；getter=fast 时仅档位改变；两轮之间切回 default；reasoning.effort=high 原样保留；压缩请求采用 fast；无效 getter 不发 inference；服务器 400/403/429 不回退也不额外请求。Run `node --test test/service-tier.mjs test/adapter.mjs`，确认是缺失功能导致 FAIL。
+- [x] **Step 3: Implement control + Config + request mapping through the declared interfaces.** `save` 使用 promise 队列，失败不使队列永久拒绝；不调用 setter 假造落盘成功。getter 在请求组装时只读取一次；生命周期仍由现有插件负责。
+- [x] **Step 4: Write red route tests before implementing routes.** 验证同源成功后 status 可读、重建控制器仍读持久配置；wrong method/foreign host/origin/remote address/cross-site 在任何保存前拒绝；缺失/重复/非法 value 400；editor 不可用 503；磁盘错误无成功状态且不泄漏凭据。Run `node --test test/web-auth.mjs`，确认 FAIL。
+- [x] **Step 5: Implement route and status wiring, then run `node --test test/service-tier.mjs test/adapter.mjs test/web-auth.mjs` and `npm test`.** Expected: PASS；OAuth 路由、注销、quota controls 和工具 replay 不倒退。
+- [x] **Step 6: Commit `feat: persist Codex service tier and request Fast processing`.**
 
 ### Task 4: Add Web control and user-facing documentation
 
@@ -100,12 +100,12 @@
 - 现有 `request(path, method)` 复用；POST `service-tier?value=<encoded>` 成功后才更新 state.serviceTier，失败保留原值并显示 notice；保存中禁用控件。
 - UI 测试用 esbuild 将组件编译为 Node ESM，React 解析到测试安装的同一模块，React DOM server 渲染；React/React DOM 仅作为 devDependencies，不捆绑进 Web 客户端。
 
-- [ ] **Step 1: Add failing render tests before creating the control.** 断言 options 恰为 default/fast、当前值 selected、busy/unwritable disabled、无 Ultrafast、提示 requested tier 与 higher usage。Run `node --test test/client.mjs`，确认缺少组件的 FAIL。
-- [ ] **Step 2: Implement the component and wire the save handler into existing CodexSettings.** 与现有账号/额度控件并列，不修改当前 DSH shell；无持久化能力时解释不可保存。保存失败不能改变选择或显示成功。
-- [ ] **Step 3: Update English/Chinese README and SPEC.** 给出 profile patch 示例 `id: llm-codex-oauth`, `config: {serviceTier: fast}`，说明 default 恢复 Standard、profile 内全部后续请求（含压缩）的范围、额度消耗、账户资格与未进行真实 Fast 验证；保留现有登录/额度文档。
-- [ ] **Step 4: Set fork metadata and prerelease version `0.3.2-fast.0`, update CHANGELOG and test script.** repository/homepage/bugs 指向用户 fork；不修改 provider ID 或插件名；不发布 npm。
-- [ ] **Step 5: Run `npm test` (including client test) and `npm run build`.** Expected: PASS；构建产物继续使用 DSH 的 ModuleLoader，不包含捆绑 React。
-- [ ] **Step 6: Commit `feat: add Standard and Fast controls to Codex settings`.**
+- [x] **Step 1: Add failing render tests before creating the control.** 断言 options 恰为 default/fast、当前值 selected、busy/unwritable disabled、无 Ultrafast、提示 requested tier 与 higher usage。Run `node --test test/client.mjs`，确认缺少组件的 FAIL。
+- [x] **Step 2: Implement the component and wire the save handler into existing CodexSettings.** 与现有账号/额度控件并列，不修改当前 DSH shell；无持久化能力时解释不可保存。保存失败不能改变选择或显示成功。
+- [x] **Step 3: Update English/Chinese README and SPEC.** 给出 profile patch 示例 `id: llm-codex-oauth`, `config: {serviceTier: fast}`，说明 default 恢复 Standard、profile 内全部后续请求（含压缩）的范围、额度消耗、账户资格与未进行真实 Fast 验证；保留现有登录/额度文档。
+- [x] **Step 4: Set fork metadata and prerelease version `0.3.2-fast.0`, update CHANGELOG and test script.** repository/homepage/bugs 指向用户 fork；不修改 provider ID 或插件名；不发布 npm。
+- [x] **Step 5: Run `npm test` (including client test) and `npm run build`.** Expected: PASS；构建产物继续使用 DSH 的 ModuleLoader，不包含捆绑 React。
+- [x] **Step 6: Commit `feat: add Standard and Fast controls to Codex settings`.**
 
 ### Task 5: Verify, review, package and push the fork branch
 
@@ -115,8 +115,8 @@
 - Consumes: Tasks 1–4、origin 用户 fork、全部测试。
 - Produces: 干净的功能分支、完整测试证据、可安装 `dsh-codex-oauth-0.3.2-fast.0.tgz`、分支 URL 与回滚/安装说明。
 
-- [ ] **Step 1: Fresh verification.** Run `npm ci --ignore-scripts`, `npm test`, `npm run build`, `git diff --check`；另外使用当前 DSH 安装的依赖做一次只读 host-resolution 集成 smoke，不触发真实推理或连接当前 GUI。Expected: all commands exit 0。
-- [ ] **Step 2: Run a fresh independent whole-branch code review.** reviewer 阅读设计、计划与 diff，特别检查 Config 的 volatile 引用和持久化、并发/失败边界、API 参数、来源校验、quota 回归与 UI 不误报。根据反馈先写回归测试再修复，随后重新运行受影响测试与完整套件。
-- [ ] **Step 3: Package without publishing.** Run `npm pack --dry-run --json`，审查文件白名单/无 token、node_modules、测试临时目录或机器配置；再运行 `npm pack --ignore-scripts` 生成本地 tgz。不得提交 tgz 到 Git。
-- [ ] **Step 4: Commit final documentation/lockfile/review changes and restore repository ownership to yzf after verifying its absolute path.** 确认 working tree clean、无生产路径更改。
-- [ ] **Step 5: Push only `feat/fast-mode` to `origin` and verify remote commit matches local HEAD.** 不写 main、不建 PR、不发布 npm。交付分支链接、源码路径、本地包、测试结果及“尚未验证账户 Fast 资格、尚未安装到当前 DSH”的明确说明。
+- [x] **Step 1: Fresh verification.** Run `npm ci --ignore-scripts`, `npm test`, `npm run build`, `git diff --check`；另外使用当前 DSH 安装的依赖做一次只读 host-resolution 集成 smoke，不触发真实推理或连接当前 GUI。Expected: all commands exit 0。
+- [x] **Step 2: Run a fresh independent whole-branch code review.** reviewer 阅读设计、计划与 diff，特别检查 Config 的 volatile 引用和持久化、并发/失败边界、API 参数、来源校验、quota 回归与 UI 不误报。根据反馈先写回归测试再修复，随后重新运行受影响测试与完整套件。
+- [x] **Step 3: Package without publishing.** Run `npm pack --dry-run --json`，审查文件白名单/无 token、node_modules、测试临时目录或机器配置；再运行 `npm pack --ignore-scripts` 生成本地 tgz。不得提交 tgz 到 Git。
+- [x] **Step 4: Commit final documentation/lockfile/review changes and restore repository ownership to yzf after verifying its absolute path.** 确认 working tree clean、无生产路径更改。
+- [x] **Step 5: Push only `feat/fast-mode` to `origin` and verify remote commit matches local HEAD.** 不写 main、不建 PR、不发布 npm。交付分支链接、源码路径、本地包、测试结果及“尚未验证账户 Fast 资格、尚未安装到当前 DSH”的明确说明。
