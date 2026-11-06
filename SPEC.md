@@ -28,12 +28,12 @@
 
 目录按当前授权缓存五分钟，账户变化后失效，可手动刷新。目录请求过程中切换账户，即使随后切回，也不得将旧结果绑定到新授权。
 
-## Fast 服务档位（0.3.2-fast.1 fork）
+## 会话级 Fast 服务档位（0.3.3-fast.0 fork）
 
-- Config 字段为 volatile 的 `serviceTier`，只接受 `default`（Standard，默认）和 `fast`。通过当前 profile 的 configEditor 持久化，不写入凭据文件。
+- Config 字段 `serviceTier` 为 volatile 的 profile 默认，只接受 `default`（Standard，默认）和 `fast`；新增 volatile `sessionServiceTiers` 字典按真实 sessionId 保存显式 default/fast，缺键即继承。通过当前 profile 的 configEditor 持久化，不写凭据或会话日志，不随单独日志导出。
 - 保存串行执行，保留无关配置；失败不更新当前选择，也不阻塞后续保存。缺少持久化编辑器时明确报错，Web 控件禁用。
-- Web 状态返回请求的服务档位和可写能力；POST `/plugins/dsh-codex-oauth/auth/service-tier?value=fast`（或 default）要求本机同源且 value 唯一、合法，失败不宣称保存成功。
-- 每个新组装的 Responses 请求读取一次配置档位；`default` 发送 `service_tier: "default"`，界面/配置 `fast` 映射为该 ChatGPT 套餐目录声明的 `service_tier: "priority"`，而非此路由返回不支持的字面值 `fast`。它跨此 profile 的会话、账户和模型生效，包含工具后续调用和历史压缩；不改模型 ID、推理强度、其他 provider 或已发出的请求。
+- Web 原状态/POST service-tier 保留为默认档位。GET/POST `/plugins/dsh-codex-oauth/auth/session-service-tier?session_id=ID` 管理本会话；POST value 为 inherit/default/fast，inherit 仅删除本键，返回 sessionId/selection/effectiveTier/defaultTier/writable。本机同源与方法保护、唯一合法参数和当前 Host 真实会话校验先于写入，不启动 Agent；失败不宣称保存成功。
+- 每个新组装的 Responses 请求读取一次配置档位；`default` 发送 `service_tier: "default"`，界面/配置 `fast` 映射为该 ChatGPT 套餐目录声明的 `service_tier: "priority"`，而非此路由返回不支持的字面值 `fast`。根据 GenerateOptions.sessionId 选择本会话覆盖，其次 profile 默认，最后 Standard；无 ID 的直接调用使用默认。普通调用、工具续轮和手动/自动压缩保持相同会话 ID；其他会话的显式选择、模型 ID、推理强度、provider 及已发请求不变。
 - Fast 消耗更多额度；界面不宣称真实资格、实际服务档位或加速已验证。不静默降级重发 Standard、不切换 API Key；自动化只使用 mock。
 - 模型目录过滤 Responses wire 接口不支持的 ultra，保留 none/minimal/low/medium/high/xhigh/max 的原始值。
 

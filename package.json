@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-oauth",
-  "version": "0.3.2-fast.1",
+  "version": "0.3.3-fast.0",
   "description": "Use ChatGPT plan models in DeepSeek Harness through native OAuth and Responses",
   "repository": {
     "type": "git",

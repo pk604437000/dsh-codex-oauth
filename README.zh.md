@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast 增强版 fork
 
-这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.2-fast.1**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
+这是 [pk604437000 的 fork](https://github.com/pk604437000/dsh-codex-oauth)，版本为 **0.3.3-fast.0**，基于 [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth) 已校验的 npm 0.3.1 发布版，增加可持久化的 Standard / Fast 选择，并保留非法 `ultra` 推理档位过滤。上游 npm 包没有这些 Fast 控件。[发布版来源与校验记录](docs/upstream/npm-0.3.1.md)。
 
 [English](README.md) | 中文
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.1.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.0.tgz"
 ```
 
 安装后重启原来的 DSH Web 进程，并刷新已有 GUI 地址。TUI 使用者将 `--profile web` 换成 `--profile dsh-tui`，再重启对应 profile。只构建和测试此仓库不会改变正在运行的 DSH 安装。
@@ -51,25 +51,32 @@ Web 界面打开 **设置 → OpenAI Codex**，点击 **Continue with ChatGPT**�
 
 在 DSH 模型选择器中选择 `openai-codex`。模型列表直接来自当前账户，因此账户支持 GPT-6.1 Sol 等新模型时，无需更新插件内的静态列表。插件保留服务端名称与排序，缓存五分钟，也可手动刷新。
 
-## Standard / Fast 服务档位
+## 每个会话单独设置 Standard / Fast
 
-在 **设置 → OpenAI Codex → Service tier** 中选择 **Standard** 或 **Fast**，默认 Standard。保存成功后写入此插件的 DSH profile 配置，对后续请求生效，无需重启 profile。保存中禁用选择器；保存失败保留原选择并显示错误。宿主缺少持久化配置编辑器时，控件禁用，可直接编辑 profile。
+每个可编辑的本地 Codex 会话，在**输入栏、模型选择附近**有“服务档位”：**继承默认 / Standard / Fast**。A 会话选 Fast、B 会话选 Standard，互不影响，也不改变各自模型或推理强度。刷新页面、重启后保留；后续普通调用、工具续轮以及自动/手动压缩按本会话选择发送，已发出的请求保持原档位。非 Codex 会话隐藏控件；未绑定会话或原生只读/寻址子会话不会误写本机设置。
+
+原来的 **设置 → OpenAI Codex → Default service tier** 只作为未指定会话的默认值，以及没有 sessionId 的直接调用的默认值。已显式设为 Standard 的会话不会随全局默认切成 Fast；选择“继承默认”删除本会话覆盖。保存中禁用控件，保存失败保留已确认值并显示错误。宿主缺少持久化编辑器时禁用写入。
 
 Web 和 TUI 都可在实际 profile 的 `cordis.patch.yml` 中加入以下配置，保留其他已有配置：
 
 ```yaml
 - id: llm-codex-oauth
   config:
-    serviceTier: fast
+    serviceTier: default
+    sessionServiceTiers:
+      SESSION_ID_A: fast
+      SESSION_ID_B: default
 ```
 
-设为 `serviceTier: default` 恢复 Standard。只接受 `default` 和 `fast`，`standard`、`priority`、`ultrafast` 均不是配置值。Fast 选择发送 `service_tier: "priority"`，对应 ChatGPT 套餐目录的 `id: "priority", name: "Fast"`；此路由曾返回 `Unsupported service_tier: fast`。Standard 明确发送 `service_tier: "default"`，不改变模型 ID 和推理强度。它影响**该 profile 内所有通过此插件发出的后续调用**，跨会话、账户和模型，包括工具后续轮次及历史压缩；不改变其他 provider 或已发送的请求。
+示例键替换为真实会话 ID；Web 控件会自动使用正确 ID。覆盖值保存在本 Host/profile 的插件配置中，不随单独的会话日志导出。分叉/子会话具有新 ID，未设置时继承 profile 默认，不自动复制父会话选择；卸载或归档会话不会清除已保存选择。
+
+持久化配置值仅为 `default` / `fast`；会话 UI/API 的 `inherit` 动作用于删除本键。`standard`、`priority`、`ultrafast` 不是配置值。Fast 仍发送 `service_tier: "priority"`，对应目录 `id: "priority", name: "Fast"`；Standard 发送 `service_tier: "default"`。每次请求只读取一次 **本会话显式覆盖 → profile 默认 → Standard**，普通调用、工具续轮和压缩一致。其他会话的显式选择、其他 provider、模型 ID、推理强度及已发出的请求均不改变。
 
 Fast 会增加套餐额度或付费额度的消耗，具体以 [OpenAI 当前费率及资格说明](https://learn.chatgpt.com/docs/agent-configuration/speed) 为准。选择器表示的是**请求的档位**，不代表账户/模型资格已验证，也不证明服务端实际使用 Fast。服务端可能返回错误或降档；插件显示错误，不静默重发 Standard，也不切换 API Key 计费。自动化测试使用 mock，普通测试命令不会发送真实模型请求，因此不验证真实 Fast 资格。
 
-**2026-11-06 真实验证：**经用户明确同意，仅发送了一次使用目录 `priority` ID 的短请求。请求完成，但实际返回 `service_tier: "default"`，因此尚未证实 Fast 处理或加速。当前部署保留 Standard；参数被接受不等于实际 Fast 生效。[真实兼容性记录](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md)。
+**2026-11-06 真实验证：**经用户明确同意，仅发送了一次使用目录 `priority` ID 的短请求。请求完成，但实际返回 `service_tier: "default"`，因此尚未证实 Fast 处理或加速。该次检查后保留了 Standard；参数被接受不等于实际 Fast 生效。[真实兼容性记录](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md)。
 
-回滚时选择 Standard，或设置 `serviceTier: default`。完整恢复上游版本时，重新安装此前使用的上游版本并重启 profile。服务档位设置不会迁移或转换 OAuth 凭据。
+单个会话恢复 Standard，直接在该会话选择 Standard。若要全部恢复，将 profile 默认设为 `default` 并清空 `sessionServiceTiers` 字典；只改默认不会清除显式 Fast 覆盖。完整回滚时重新安装旧版本并恢复对应 profile 备份，再重启。服务档位设置不会迁移或转换 OAuth 凭据。
 
 ## 多账户与凭据
 

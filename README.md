@@ -1,6 +1,6 @@
 # dsh-codex-oauth — Fast-enabled fork
 
-This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.2-fast.1**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
+This is the [pk604437000 fork](https://github.com/pk604437000/dsh-codex-oauth), version **0.3.3-fast.0**, based on the verified npm 0.3.1 release of [eons2long/dsh-codex-oauth](https://github.com/eons2long/dsh-codex-oauth). It adds a persistent Standard / Fast selector and preserves the unsupported-`ultra` compatibility fix. The upstream npm package does not include these Fast controls. [Baseline provenance](docs/upstream/npm-0.3.1.md).
 
 [English](README.md) | [中文](README.zh.md)
 
@@ -20,7 +20,7 @@ cd dsh-codex-oauth
 npm ci --ignore-scripts
 npm test
 npm pack --ignore-scripts
-dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.2-fast.1.tgz"
+dsh plugin --profile web add -w "file:$PWD/dsh-codex-oauth-0.3.3-fast.0.tgz"
 ```
 
 After installing, restart your existing DSH Web process and refresh its existing GUI URL. For TUI, replace `--profile web` with `--profile dsh-tui`, then restart that profile. Building/testing this checkout alone does not change a running DSH installation.
@@ -51,25 +51,32 @@ In the Web UI, open **Settings → OpenAI Codex**, select **Continue with ChatGP
 
 Choose provider `openai-codex` in DSH's model picker. Models come from the selected account's live catalog, including new releases such as GPT-6.1 Sol when the account has access. The plugin preserves the server's display names and ordering, caches the catalog for five minutes, and supports explicit refresh. It does not maintain a fixed model list.
 
-## Standard and Fast service tiers
+## Per-session Standard and Fast service tiers
 
-In **Settings → OpenAI Codex → Service tier**, choose **Standard** or **Fast**. The default is Standard. A successful save persists to this plugin's DSH profile configuration and applies to subsequent requests without restarting the profile. While saving, the selector is disabled; a failed save keeps the previous choice and displays the error. If the host has no persistent configuration editor, the selector is disabled and the profile can be edited directly.
+Each editable local Codex conversation has a **Service tier** selector in its input bar beside the model picker: **Inherit default**, **Standard**, or **Fast**. Set A to Fast and B to Standard without changing either one's model/reasoning or the other conversation. Settings persist across refresh/restart and apply to subsequent requests, tool follow-ups and automatic/manual compaction; an in-flight request keeps its captured tier. Non-Codex conversations hide the control, while unbound/addressed read-only scopes cannot modify local profile state.
+
+**Settings → OpenAI Codex → Default service tier** now controls only conversations that inherit, plus ad-hoc calls without a session ID. Existing `serviceTier` configuration remains compatible. A pinned Standard stays Standard even if the default becomes Fast; choosing Inherit default removes that session override. Saving disables the control; failures keep the confirmed selection and show the error. Hosts without a persistent editor disable writes.
 
 For Web or TUI, add this entry to the active profile's `cordis.patch.yml`, preserving other settings:
 
 ```yaml
 - id: llm-codex-oauth
   config:
-    serviceTier: fast
+    serviceTier: default
+    sessionServiceTiers:
+      SESSION_ID_A: fast
+      SESSION_ID_B: default
 ```
 
-Set `serviceTier: default` to restore Standard. Only `default` and `fast` are accepted; `standard`, `priority`, and `ultrafast` are not configuration values. The Fast selection sends `service_tier: "priority"`, matching the ChatGPT-plan catalog's `id: "priority", name: "Fast"`; the literal wire value `fast` was rejected on this route. Standard explicitly sends `service_tier: "default"`. This changes neither model ID nor reasoning effort. The setting covers **all subsequent calls through this plugin in the profile**, across conversations, accounts and models, including tool follow-ups and compaction. Other providers and already-sent requests are unchanged.
+Replace the example keys with actual session IDs. The Web selector supplies these automatically. Overrides are local to this Host/profile and are not exported with session history. A fork/subagent gets a new identity and inherits the profile default until explicitly set; unloading/archiving does not erase its saved choice.
+
+Only `default` and `fast` are stored configuration values; `inherit` is a session UI/API action that removes the key. `standard`, `priority`, and `ultrafast` are not configuration values. Fast sends `service_tier: "priority"`, matching the ChatGPT-plan catalog's `id: "priority", name: "Fast"`; Standard sends `service_tier: "default"`. At each request the plugin captures **this session's override → profile default → Standard**, including ordinary/tool-follow-up/compaction calls. Other sessions' pinned choices, providers, model IDs, reasoning effort and already-sent requests are unchanged.
 
 Fast consumes more plan allowance or credits; review [current OpenAI rates and eligibility](https://learn.chatgpt.com/docs/agent-configuration/speed). The selector records the **requested** tier, not proof that a model/account supports it or that the server actually used it. A server can reject or downgrade a request. The plugin surfaces errors without silently retrying Standard or switching to API-key billing. Automated tests use mocked providers and do not establish live Fast eligibility; no real model request is part of the normal test command.
 
-**Live verification, 2026-11-06:** after explicit approval, one short request using the catalog's `priority` ID completed successfully but returned `service_tier: "default"`. It does not establish actual Fast processing. The current deployment is kept on Standard; mapping acceptance is not proof of an accelerated tier. See the [live compatibility record](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md).
+**Live verification, 2026-11-06:** after explicit approval, one short request using the catalog's `priority` ID completed successfully but returned `service_tier: "default"`. It does not establish actual Fast processing. The profile was left on Standard after that check; mapping acceptance is not proof of an accelerated tier. See the [live compatibility record](https://github.com/pk604437000/dsh-codex-oauth/blob/feat/fast-mode/docs/verification/2026-11-06-priority-wire-fix.md).
 
-To roll back, choose Standard (or set `serviceTier: default`). To remove this fork entirely, reinstall the previously used upstream version and restart the profile. OAuth credentials are not converted by the service-tier setting.
+To use Standard in one session, select Standard there. To reset every session, set the profile default to `default` and clear its `sessionServiceTiers` dictionary; changing only the default does not erase pinned Fast choices. To remove this fork entirely, reinstall the previous version with its matching profile backup and restart the profile. OAuth credentials are not converted by tier settings.
 
 ## Accounts and credentials
 
