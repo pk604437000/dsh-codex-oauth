@@ -93,6 +93,16 @@ test("catalog displays current account models in server order and refreshes new 
   assert.deepEqual(await mock.adapter.listModels(OPENAI_CODEX_PROVIDER), []);
 });
 
+test("catalog excludes unsupported ultra without rewriting supported effort IDs", async (t) => {
+  const mock = await fixture(t);
+  const valid = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+  mock.models[0].supported_reasoning_levels = ["ultra", ...valid].map((effort) => ({ effort }));
+  mock.models[0].default_reasoning_level = "ultra";
+  const model = (await mock.adapter.listModels(OPENAI_CODEX_PROVIDER))[0];
+  assert.deepEqual(model.reasoning.efforts.map((level) => level.id), valid);
+  assert.equal(model.reasoning.defaultEffort, undefined);
+});
+
 test("UTF-8 SSE becomes DSH blocks, uncached token usage and a single terminal finish, including a missing Content-Type", async (t) => {
   const mock = await fixture(t);
   mock.stream = () => responseStream(textEvents(), {});
