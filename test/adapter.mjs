@@ -55,7 +55,7 @@ function textEvents(text = "你好，native") {
     { type: "response.completed", response: { id: "resp-test", status: "completed", output: [item], usage } },
   ];
 }
-async function fixture(t, attachments) {
+async function fixture(t, attachments, adapterOptions = {}) {
   const root = await mkdtemp(join(tmpdir(), "dsh-native-adapter-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const store = new CodexCredentialStore(join(root, "auth.json"));
@@ -63,6 +63,7 @@ async function fixture(t, attachments) {
   const requests = [];
   const mock = { store, requests, requestHeaders: [], models: structuredClone(baseCatalog), stream: () => responseStream(textEvents()), catalogCalls: 0 };
   const adapter = createCodexAdapter(store, () => attachments, {
+    ...adapterOptions,
     async fetch(url, options) {
       for (const [name, value] of Object.entries(attributionHeaders())) assert.equal(new Headers(options.headers).get(name), value);
       if (url.endsWith("/models")) { mock.catalogCalls++; await mock.beforeCatalog?.(); return json({ models: mock.models }); }
@@ -79,6 +80,50 @@ async function fixture(t, attachments) {
   return mock;
 }
 async function collect(iterable) { const chunks = []; for await (const chunk of iterable) chunks.push(chunk); return chunks; }
+
+test("default requests explicitly select the Standard service tier", async (t) => {
+  const mock = await fixture(t);
+  await collect(mock.adapter.stream(mock.options));
+  assert.equal(mock.requests[0].service_tier, "default");
+});
+
+test("Fast changes service tier without changing model or reasoning and can switch back", async (t) => {
+  let tier = "fast", reads = 0;
+  const mock = await fixture(t, undefined, { getServiceTier() { reads++; return tier; } });
+  const options = { ...mock.options, reasoningEffort: "high" };
+  await collect(mock.adapter.stream(options));
+  tier = "default";
+  await collect(mock.adapter.stream(options));
+  assert.equal(reads, 2);
+  assert.equal(mock.requests[0].service_tier, "fast");
+  assert.equal(mock.requests[1].service_tier, "default");
+  assert.equal(mock.requests[0].model, "gpt-6.1-sol");
+  assert.equal(mock.requests[0].reasoning.effort, "high");
+  const { service_tier: a, ...first } = mock.requests[0];
+  const { service_tier: b, ...second } = mock.requests[1];
+  assert.deepEqual(first, second);
+});
+
+test("Fast also applies to compaction and invalid configuration never reaches inference", async (t) => {
+  let tier = "fast";
+  const mock = await fixture(t, undefined, { getServiceTier: () => tier });
+  await collect(mock.adapter.stream({ ...mock.options, purpose: "compaction", maxTokens: 1234 }));
+  assert.equal(mock.requests[0].service_tier, "fast");
+  assert.equal(Object.hasOwn(mock.requests[0], "max_output_tokens"), false);
+  tier = "ultrafast";
+  await assert.rejects(collect(mock.adapter.stream(mock.options)), (error) => error.code === "UNSUPPORTED_OPTION");
+  assert.equal(mock.requests.length, 1);
+});
+
+test("Fast rejection is surfaced without retrying Standard or another billing route", async (t) => {
+  for (const status of [400, 403, 429]) {
+    const mock = await fixture(t, undefined, { getServiceTier: () => "fast" });
+    mock.stream = () => json({ error: { message: "Fast unavailable", code: "unsupported_service_tier" } }, status);
+    await assert.rejects(collect(mock.adapter.stream(mock.options)), (error) => error.failure.status === status);
+    assert.equal(mock.requests.length, 1);
+    assert.equal(mock.requests[0].service_tier, "fast");
+  }
+});
 
 test("catalog displays current account models in server order and refreshes new model metadata", async (t) => {
   const mock = await fixture(t);

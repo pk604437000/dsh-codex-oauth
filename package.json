@@ -12,7 +12,7 @@
   },
   "keywords": ["dsh-plugin", "deepseek-harness", "openai-codex", "oauth"],
   "license": "MIT",
-  "scripts": { "build": "node scripts/build-client.mjs", "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs", "test:live": "node scripts/verify-live.mjs" },
+  "scripts": { "build": "node scripts/build-client.mjs", "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs", "test:live": "node scripts/verify-live.mjs" },
   "type": "module",
   "main": "lib/index.js",
   "bin": { "dsh-openai-codex": "bin/dsh-openai-codex.js" },
@@ -29,6 +29,7 @@
   "engines": { "node": ">=22" },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.5",
     "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.2",
     "@deepseek-ai/dsh-llm": "^0.2.0-rc.2"
   }
