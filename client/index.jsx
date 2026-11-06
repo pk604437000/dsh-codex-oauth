@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ServiceTierControl } from "./service-tier.jsx";
+import { SessionServiceTierControl, requestSessionTier, notifyServiceTierChange, sessionTierMessages, SESSION_TIER_LOCALE } from "./session-service-tier.jsx";
 
 const BASE = "/plugins/dsh-codex-oauth/auth";
 const h = React.createElement;
@@ -111,7 +112,8 @@ function CodexSettings() {
     try {
       const result = await request(`service-tier?value=${encodeURIComponent(value)}`, "POST");
       setState((current) => ({ ...current, serviceTier: result.serviceTier }));
-      setNotice(`Service tier saved: ${result.serviceTier === "fast" ? "Fast" : "Standard"} (requested).`);
+      setNotice(`Default service tier saved: ${result.serviceTier === "fast" ? "Fast" : "Standard"} (requested).`);
+      notifyServiceTierChange();
     } catch (error) { setNotice(error.message); }
     finally { statusGeneration.current++; setBusy(false); }
   };
@@ -156,7 +158,19 @@ function CodexSettings() {
   );
 }
 export const name = "dsh-codex-oauth-client";
-export const inject = ["slots"];
+export const inject = ["slots", "locale"];
 export function apply(ctx) {
+  ctx.effect(() => ctx.locale.register(SESSION_TIER_LOCALE, sessionTierMessages), "codex: session tier dictionaries");
   ctx.slots.inject("settings.section", () => ctx.slots.register({ name: "settings.section", id: "dsh-codex-oauth", order: 15, label: () => "OpenAI Codex" }, CodexSettings));
+  ctx.inject(["slots", "sessions", "modelDirectories"], (scope) => {
+    scope.slots.inject("conversation.input.right", () => scope.slots.register({
+      name: "conversation.input.right", id: "dsh-codex-session-service-tier", order: 40, locale: SESSION_TIER_LOCALE,
+      inject: (sessionId) => {
+        const available = typeof sessionId === "string" && scope.sessions.binding(sessionId) !== undefined
+          && scope.sessions.subagentAddress(sessionId) === undefined;
+        const directory = available ? scope.modelDirectories.directoryFor(sessionId) : undefined;
+        return { sessionId, available, directory: directory?.store, loadModel: () => directory?.load(), request: requestSessionTier };
+      },
+    }, SessionServiceTierControl));
+  });
 }

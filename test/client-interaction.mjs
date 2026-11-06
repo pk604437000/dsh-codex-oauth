@@ -33,7 +33,11 @@ async function fixture(t, initialTier = "default") {
     clearInterval(timer) { timers.delete(timer); },
   });
   let Component;
-  client.apply({ slots: { inject(_name, register) { register(); }, register(_slot, component) { Component = component; return () => {}; } } });
+  client.apply({
+    slots: { inject(_name, register) { register(); }, register(_slot, component) { Component = component; return () => {}; } },
+    locale: { register() { return () => {}; } }, effect(fn) { return fn(); },
+    inject() {}, // This settings-only fixture has no sessions/modelDirectories services.
+  });
   const { createRoot } = await import("react-dom/client");
   const container = window.document.createElement("div"); window.document.body.append(container);
   const root = createRoot(container);

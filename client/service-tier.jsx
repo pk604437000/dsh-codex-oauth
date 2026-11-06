@@ -4,7 +4,7 @@ const h = React.createElement;
 export function ServiceTierControl({ value = "default", disabled = false, writable = false, onChange }) {
   return h("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
     h("label", { style: { display: "flex", alignItems: "center", gap: 12 } },
-      h("span", null, "Service tier"),
+      h("span", null, "Default service tier"),
       h("select", { "aria-label": "Service tier", value, disabled: disabled || !writable,
         onChange: (event) => onChange(event.target.value) },
       h("option", { value: "default" }, "Standard"),

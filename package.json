@@ -19,7 +19,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build-client.mjs",
-    "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs test/client.mjs test/client-interaction.mjs",
+    "test": "npm run build && node test/smoke.mjs && node --test test/auth.mjs test/companion-auth.mjs test/adapter.mjs test/web-auth.mjs test/quota.mjs test/service-tier.mjs test/client.mjs test/client-interaction.mjs test/session-client.mjs",
     "test:live": "node scripts/verify-live.mjs"
   },
   "type": "module",
@@ -54,7 +54,9 @@
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-locale"
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-model-selection"
       ],
       "platform": "web"
     }
