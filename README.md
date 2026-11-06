@@ -23,7 +23,7 @@ For a source checkout:
 npm install
 npm run build
 npm pack --ignore-scripts
-dsh plugin --profile dsh-tui add -w "file:$PWD/dsh-codex-oauth-0.3.0.tgz"
+dsh plugin --profile dsh-tui add -w "file:$PWD/dsh-codex-oauth-0.3.1.tgz"
 dsh --profile dsh-tui
 ```
 
@@ -68,7 +68,7 @@ Each account retains its issued application registration. Reauthorization reuses
 
 Credentials are stored in `$DSH_HOME/.openai-codex-auth.v2.json`, defaulting to `~/.dsh/.openai-codex-auth.v2.json`. The versioned document keeps a stable host identifier, account registrations and the active selection. Writes are atomic; the directory is owner-only and the file is `0600` on POSIX. A cross-process lock serializes token rotation. Temporary refresh failures preserve credentials; terminal refresh failures clear expired authorization.
 
-**Upgrade from 0.2:** sign in again using the new authorization flow. Legacy `.openai-codex-auth.json` credentials cannot authorize this API route and are left untouched. The plugin never imports or changes `~/.pi/agent/auth.json` or `~/.codex/auth.json`.
+**Upgrade from 0.2:** sign in again using the new authorization flow. Legacy `.openai-codex-auth.json` credentials cannot authorize this inference route; native login does not overwrite them. The separate managed quota login can renew that file. The plugin never imports or changes `~/.pi/agent/auth.json` or `~/.codex/auth.json`.
 
 ## Supported behavior and limits
 
@@ -102,11 +102,23 @@ node "${DSH_HOME:-$HOME/.dsh}/profiles/dsh-tui/node_modules/dsh-codex-oauth/scri
 
 Restart the TUI afterward. Without this patch the summary uses the standard position above the input box. Installation never applies the patch automatically.
 
-The adapter observes `x-codex-*` response headers and `codex.rate_limits` stream events from normal requests. When these do not provide fresh data, the display queries `https://chatgpt.com/backend-api/wham/usage` with the plugin's retained legacy Codex credentials in `.openai-codex-auth.json`, beside its native auth file. It does not read Pi or Codex app credentials, change the inference route, or call a model. Successful lookups are cached for 60 seconds; failures back off for 30 seconds. Concurrent displays share one request.
+The adapter observes `x-codex-*` response headers and `codex.rate_limits` stream events from normal requests. When these do not provide fresh data, a separate Codex quota login in `.openai-codex-auth.json` queries the ChatGPT backend. This login is independent of native inference and is managed by the plugin, without pi-ai, Pi/Codex app credentials, or model calls. Successful lookups are cached for 60 seconds; failures back off for 30 seconds. Concurrent displays share one request.
 
-This fallback reports Codex subscription limits, which have not been proven identical to the native SIWC application's limits. The saved credentials must have matching email claims; matching email does not establish the same workspace. This qualification belongs to the documentation, not the UI. Missing, expired, unrelated, or rejected legacy credentials leave quota unavailable. The lookup does not refresh or modify the legacy login: renew that login separately when it expires.
+Starting with 0.3.1, normal `login` (or **Continue with ChatGPT** in Web settings) also connects quota. It reuses or refreshes matching credentials; otherwise it opens a second authorization after native sign-in. Choose the same account and workspace. Cancelling or failing this second step preserves native sign-in. No separate command is needed for new users. To repair, inspect, or disconnect quota independently:
 
-Snapshots stay in memory, clear on account changes/sign-out, and become stale after five minutes or a reported reset. Failed queries preserve the previous snapshot; passing a reset timestamp never fabricates a fresh 100% allowance. Source formats are parsed independently rather than merging windows from different endpoints.
+```bash
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-login
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-status
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-logout
+```
+
+Choose the same ChatGPT account and workspace as native inference. Existing plugin v1 credentials are reused. Near-expiry tokens refresh automatically under the same cross-process file lock, and the rotated refresh token is persisted atomically. A backend 401 permits one credential refresh and retry. Temporary refresh failures preserve credentials; terminal failures disconnect quota and require quota-login again. Quota logout removes local quota credentials without signing out native inference. Browser login uses the Codex callback on port 1455; close another active login if that port is occupied.
+
+Before reading `https://chatgpt.com/backend-api/wham/usage`, the companion token queries `/backend-api/wham/usage/chatpass/apps`. The complete app list must uniquely match the native client ID; missing/duplicate registrations and unsupported pagination fail closed. Both native and companion identities are checked at request boundaries. Native SIWC tokens are never sent to these endpoints.
+
+This undocumented companion source reports shared plan limits. Registration and email matching do not constitute independent proof of the same user/workspace, and equivalence to all native SIWC application limits remains unconfirmed. These qualifications are documented rather than appended to the UI. Missing, mismatched, revoked, or rejected credentials leave quota unavailable.
+
+Snapshots stay in memory, clear on account changes/sign-out, and become stale after five minutes or a reported reset. Failed companion queries invalidate the previous companion snapshot; passing a reset timestamp never fabricates a fresh 100% allowance. Source formats are parsed independently rather than merging windows from different endpoints.
 
 ```bash
 npm install

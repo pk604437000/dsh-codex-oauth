@@ -13,16 +13,17 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 test("adapter quota display reads only its sibling legacy login and leaves both credentials unchanged", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "dsh-quota-adapter-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const token = `header.${Buffer.from(JSON.stringify({ email: "person@example.test" })).toString("base64url")}.signature`;
+  const token = `header.${Buffer.from(JSON.stringify({ email: "person@example.test", "https://api.openai.com/auth": { chatgpt_account_id: "legacy-account" } })).toString("base64url")}.signature`;
   const store = new CodexCredentialStore(join(root, "native.json"));
   await store.modify(OPENAI_CODEX_PROVIDER, () => ({ clientId: "oaiapp_test", subject: "test-subject", issuer: "https://auth.openai.com", access: "native-access", idToken: token, expires: Date.now() + 3600000, scopes: ["chatgpt.tokens.use.direct"] }));
   const legacyPath = join(root, ".openai-codex-auth.json");
-  await writeFile(legacyPath, JSON.stringify({ credential: { access: token, accountId: "legacy-account", expires: Date.now() + 3600000 } }), { mode: 0o600 });
+  await writeFile(legacyPath, JSON.stringify({ version: 1, generation: 0, credential: { type: "oauth", access: token, refresh: "quota-refresh", accountId: "legacy-account", expires: Date.now() + 3600000 } }), { mode: 0o600 });
   const before = await Promise.all([readFile(store.filename, "utf8"), readFile(legacyPath, "utf8")]);
   let calls = 0;
   const adapter = createCodexAdapter(store, undefined, { async fetch(url, options) {
-    calls++; assert.equal(url, "https://chatgpt.com/backend-api/wham/usage");
     assert.equal(options.headers.authorization, `Bearer ${token}`);
+    if (url === "https://chatgpt.com/backend-api/wham/usage/chatpass/apps") return json({ items: [{ id: "oaiapp_test" }] });
+    calls++; assert.equal(url, "https://chatgpt.com/backend-api/wham/usage");
     return json({ rate_limit: { primary_window: { used_percent: 12, limit_window_seconds: 18000 }, secondary_window: { used_percent: 49, limit_window_seconds: 604800 } } });
   } });
   t.after(() => adapter.dispose());

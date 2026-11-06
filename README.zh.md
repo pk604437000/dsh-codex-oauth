@@ -23,7 +23,7 @@ dsh --profile dsh-tui
 npm install
 npm run build
 npm pack --ignore-scripts
-dsh plugin --profile dsh-tui add -w "file:$PWD/dsh-codex-oauth-0.3.0.tgz"
+dsh plugin --profile dsh-tui add -w "file:$PWD/dsh-codex-oauth-0.3.1.tgz"
 dsh --profile dsh-tui
 ```
 
@@ -68,7 +68,7 @@ dsh plugin --profile dsh-tui exec dsh-openai-codex logout
 
 凭据存储在 `$DSH_HOME/.openai-codex-auth.v2.json`，默认 `~/.dsh/.openai-codex-auth.v2.json`。版本化文件保存稳定的主机标识、账户注册和当前账户。采用原子写入；POSIX 系统下目录仅所有者可访问，文件权限为 `0600`。跨进程文件锁确保刷新 token 时不会重复使用已轮换的凭据。临时刷新失败保留凭据，明确失效的授权会被清除。
 
-**从 0.2 升级：需要重新登录。** 旧 `.openai-codex-auth.json` 中的凭据无法用于新的 API 路由，插件会保留旧文件。插件不导入或修改 `~/.pi/agent/auth.json` 与 `~/.codex/auth.json`。
+**从 0.2 升级：需要重新登录。** 旧 `.openai-codex-auth.json` 中的凭据无法用于新的推理路由，原生登录不会覆盖旧文件；独立的额度登录会复用并刷新该文件。插件不导入或修改 `~/.pi/agent/auth.json` 与 `~/.codex/auth.json`。
 
 ## 支持范围与限制
 
@@ -102,11 +102,23 @@ node "${DSH_HOME:-$HOME/.dsh}/profiles/dsh-tui/node_modules/dsh-codex-oauth/scri
 
 之后重启 TUI。未应用补丁时，摘要使用标准的输入框上方位置；安装插件不会自动修改 TUI。
 
-优先使用正常请求的 `x-codex-*` 响应头和 `codex.rate_limits` 流事件。没有新鲜数据时，读取原生登录文件旁保留的 `.openai-codex-auth.json`，用插件自己的旧版 Codex 凭据查询 `https://chatgpt.com/backend-api/wham/usage`。不读取 Pi 或 Codex 应用的登录文件，不改变推理路由，也不调用模型。成功结果缓存 60 秒，查询失败退避 30 秒，并发显示共享一次请求。
+优先使用正常请求的 `x-codex-*` 响应头和 `codex.rate_limits` 流事件。没有新鲜数据时，使用 `.openai-codex-auth.json` 中独立的 Codex 额度登录。该登录由插件维护，不依赖 pi-ai、不读取 Pi 或 Codex 应用的登录文件、不改变原生推理路由，也不调用模型。成功结果缓存 60 秒，查询失败退避 30 秒，并发共享一次请求。
 
-此备用来源返回 Codex 订阅额度，尚未证明与原生 SIWC 应用的额度完全相同。两套凭据的邮箱必须一致，但相同邮箱不能证明工作区相同；这些限制只记录在代码和文档里，UI 不加来源标签。旧版凭据缺失、过期、邮箱不匹配或被接口拒绝时保持额度不可用。查询不会刷新或修改旧版登录；过期后需要单独更新该登录。
+从 0.3.1 开始，普通 `login`（或 Web 设置中的 **Continue with ChatGPT**）会一起连接额度。已有匹配凭据会自动复用或刷新，否则在原生登录后继续打开额度授权，选择相同账户和工作区。取消或失败只影响额度，不会丢失已完成的原生登录。新用户不需要额外命令；单独修复、查看或断开额度时可运行：
 
-快照仅保存在当前进程内存中，切换账户或登出时清除；超过五分钟或已过重置时间标记 stale。失败保留上次快照，不推算额度已恢复至 100%；不同接口的数据独立解析，不混合拼接额度窗口。
+```bash
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-login
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-status
+dsh plugin --profile dsh-tui exec dsh-openai-codex quota-logout
+```
+
+选择与原生推理相同的 ChatGPT 账户及工作区。已有插件 v1 凭据会复用；临近过期自动刷新，使用同一跨进程文件锁和原子写入保存轮换后的 refresh token。backend 返回 401 时最多刷新并重试一次。临时失败保留凭据；明确撤销或失效时断开额度登录，需要重新 quota-login。quota-logout 只移除本地额度凭据，不退出原生推理登录。浏览器登录使用 Codex 固定的 1455 回调端口；被占用时先结束其他正在进行的登录。
+
+查询 `https://chatgpt.com/backend-api/wham/usage` 前，先用额度凭据查询 `/backend-api/wham/usage/chatpass/apps`，完整列表中必须唯一匹配原生 client ID；注册缺失、重复或存在不支持的分页时不显示额度。每个请求边界重新检查两套登录状态，原生 SIWC token 不发送到这些接口。
+
+此未公开的辅助来源返回套餐额度；注册与邮箱匹配并非独立的账户身份或工作区证明，也尚未确认覆盖原生 SIWC 的所有应用限制。这些说明保留在代码和文档中，UI 不增加来源标签。额度凭据缺失、不匹配、撤销或被接口拒绝时显示不可用。
+
+快照仅保存在当前进程内存中，切换账户或登出时清除；超过五分钟或已过重置时间标记 stale。辅助查询失败会清除上次辅助快照，不推算额度已恢复至 100%；不同接口的数据独立解析，不混合拼接额度窗口。
 
 ```bash
 npm install

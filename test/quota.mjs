@@ -25,16 +25,18 @@ const jwt = (email) => `header.${Buffer.from(JSON.stringify({ email })).toString
 const native = { idToken: jwt("person@example.test") };
 function lookupFixture(fetcher) {
   let now = 1_000_000;
-  let credential = { access: jwt("person@example.test"), accountId: "legacy-account", expires: 10_000_000 };
+  let credential = { access: jwt("person@example.test"), refresh: "test-refresh", accountId: "legacy-account", generation: 0, expires: 10_000_000 };
   let calls = 0;
   const lookup = new CodexQuotaLookup("/unused/auth.json", {
     now: () => now, readCredential: async () => credential,
+    resolveCredential: async () => { if (!(credential?.expires > now)) throw new Error("Test login expired"); return credential; },
     fetch: async (url, options) => {
-      calls++;
-      assert.equal(url, "https://chatgpt.com/backend-api/wham/usage");
       assert.equal(options.redirect, "error");
       assert.equal(options.headers.authorization, `Bearer ${credential.access}`);
       assert.equal(options.headers["chatgpt-account-id"], credential.accountId);
+      if (url === "https://chatgpt.com/backend-api/wham/usage/chatpass/apps") return new Response(JSON.stringify({ items: [{ id: "test-account" }] }));
+      assert.equal(url, "https://chatgpt.com/backend-api/wham/usage");
+      calls++;
       return fetcher(options);
     },
   });
@@ -61,15 +63,15 @@ test("WHAM lookups share in-flight work, cache results, and retire absent window
   const updated = await f.lookup.snapshot(native, binding);
   assert.equal(f.calls(), 2); assert.equal(updated.buckets[0].windows.length, 1);
 });
-test("failed WHAM queries preserve stale data and back off without retrying inference", async (t) => {
+test("failed WHAM queries invalidate prior data and back off without retrying inference", async (t) => {
   let failed = false;
-  const f = lookupFixture(async () => failed ? new Response("unauthorized", { status: 401 }) : wham());
+  const f = lookupFixture(async () => failed ? new Response("unavailable", { status: 503 }) : wham());
   t.after(() => f.lookup.dispose());
   await f.lookup.snapshot(native, binding);
   failed = true; f.advance(301_000);
   const snapshot = await f.lookup.snapshot(native, binding);
-  assert.equal(snapshot.buckets[0].windows[0].remainingPercent, 88);
-  assert.equal(snapshot.buckets[0].windows[0].stale, true);
+  assert.equal(snapshot.available, false);
+  assert.deepEqual(snapshot.buckets, []);
   await f.lookup.snapshot(native, binding); assert.equal(f.calls(), 2);
   f.advance(30_000); await f.lookup.snapshot(native, binding); assert.equal(f.calls(), 3);
 });
@@ -129,6 +131,17 @@ test("quota windows are labeled by duration, with independent model buckets and 
   assert.match(quotaDetails(snapshot, 1000), /reset time unavailable/);
   assert.equal(quotaSummary(snapshot, 1000), "codex 80% ? 70% ?");
 });
+test("TUI skips quota polling outside the Codex provider", async () => {
+  const tracker = new QuotaTracker(), cleanups = [];
+  let reads = 0, displays = 0;
+  const ctx = { inject(deps, fn) { if (deps.includes("tuiStatus")) fn({
+    effect(fn) { cleanups.push(fn()); },
+    tuiStatus: { set() { displays++; return () => {}; } },
+  }); } };
+  registerQuotaUi(ctx, { quotas: tracker, async quotaSnapshot() { reads++; return tracker.snapshot(); } }, { readTuiRoute: () => ({ provider: "deepseek", model: "test" }) });
+  try { await new Promise(setImmediate); assert.equal(reads, 0); assert.equal(displays, 0); }
+  finally { for (const cleanup of cleanups) cleanup(); }
+});
 test("TUI summary and detail command read the same quota snapshot and clean up on unload", async () => {
   const tracker = new QuotaTracker(); tracker.activate(binding);
   let command, summary, reads = 0; const cleanups = [];
@@ -137,7 +150,7 @@ test("TUI summary and detail command read the same quota snapshot and clean up o
     commands: { register(value) { command = value; return () => { command = undefined; }; } },
     tuiStatus: { set(_key, value) { summary = value; return () => { summary = undefined; }; } },
   }); } };
-  registerQuotaUi(ctx, { quotas: tracker, async quotaSnapshot() { reads++; return tracker.snapshot(); } });
+  registerQuotaUi(ctx, { quotas: tracker, async quotaSnapshot() { reads++; return tracker.snapshot(); } }, { readTuiRoute: () => ({ provider: "openai-codex", model: "test" }) });
   await new Promise(setImmediate);
   assert.equal(summary, "codex unavailable");
   tracker.update(binding, windows(40, Math.floor(Date.now() / 1000) + 3600), 1);

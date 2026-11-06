@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const BASE = "/plugins/dsh-codex-oauth/auth";
 const h = React.createElement;
@@ -30,10 +30,20 @@ function CodexSettings() {
   const [state, setState] = useState({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const authorization = useRef({ popup: null, url: null });
+  const openChallenge = (challenge, popup = authorization.current.popup) => {
+    if (!popup || popup.closed) return;
+    if (authorization.current.url === challenge.url) return;
+    popup.location.replace(challenge.url);
+    authorization.current = { popup, url: challenge.url };
+  };
+  useEffect(() => {
+    if (state.challenge) openChallenge(state.challenge);
+  }, [state.challenge?.url]);
   const refresh = useCallback(() => request("status").then(setState).catch((error) => setState({ status: "error", message: error.message })), []);
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    if (state.status !== "signing-in") return undefined;
+    if (!["signing-in", "quota-signing-in"].includes(state.status)) return undefined;
     const timer = setInterval(refresh, 1000);
     return () => clearInterval(timer);
   }, [refresh, state.status]);
@@ -41,8 +51,9 @@ function CodexSettings() {
     const popup = window.open("about:blank", "_blank");
     if (!popup) { setState({ ...state, status: "error", message: "Allow pop-ups to complete sign-in." }); return; }
     popup.opener = null;
+    authorization.current = { popup, url: null };
     setBusy(true); setState({ ...state, status: "signing-in" }); setNotice("");
-    try { const challenge = await request(`login${newAccount ? "?new_account=1" : ""}`, "POST"); popup.location.replace(challenge.url); }
+    try { const challenge = await request(`login${newAccount ? "?new_account=1" : ""}`, "POST"); openChallenge(challenge, popup); }
     catch (error) { popup.close(); setState({ ...state, status: "error", message: error.message }); }
     finally { setBusy(false); }
   };
@@ -67,6 +78,23 @@ function CodexSettings() {
     catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
   };
+  const connectQuota = async () => {
+    const popup = window.open("about:blank", "_blank");
+    if (!popup) { setNotice("Allow pop-ups to connect quota."); return; }
+    popup.opener = null; setBusy(true); setNotice("");
+    authorization.current = { popup, url: null };
+    try {
+      const challenge = await request("quota/login", "POST");
+      openChallenge(challenge, popup); await refresh();
+    } catch (error) { popup.close(); setNotice(error.message); }
+    finally { setBusy(false); }
+  };
+  const disconnectQuota = async () => {
+    setBusy(true);
+    try { await request("quota/logout", "POST"); await refresh(); }
+    catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  };
   const signedIn = state.authenticated && state.planUsage;
   useEffect(() => {
     if (!signedIn) return undefined;
@@ -74,6 +102,7 @@ function CodexSettings() {
     return () => clearInterval(timer);
   }, [signedIn, refresh]);
   const signingIn = state.status === "signing-in";
+  const quotaSigningIn = state.status === "quota-signing-in";
   const label = signingIn ? "Waiting for browser sign-in…" : signedIn ? `Signed in${state.label ? `: ${state.label}` : ""}`
     : state.status === "loading" ? "Checking sign-in status…" : state.authenticated ? "Signed in; ChatGPT plan usage is not authorized" : "Signed out";
   return h("section", { style: { display: "flex", flexDirection: "column", gap: 12, maxWidth: 640 } },
@@ -81,18 +110,26 @@ function CodexSettings() {
     h("p", { style: { margin: 0 } }, "Use your ChatGPT plan without an OpenAI API key. Models are provided by the active account."),
     h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 16, border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 10 } },
       h("span", null, label),
-      state.status === "loading" ? null : h("button", { type: "button", disabled: busy, onClick: signedIn || signingIn ? signOut : () => signIn() }, signedIn ? "Sign out" : signingIn ? "Cancel sign-in" : "Continue with ChatGPT")),
+      state.status === "loading" ? null : h("button", { type: "button", disabled: busy || quotaSigningIn, onClick: signedIn || signingIn ? signOut : () => signIn() }, signedIn ? "Sign out" : signingIn ? "Cancel sign-in" : "Continue with ChatGPT")),
     state.accounts?.length ? h("div", { style: { display: "flex", gap: 8 } },
-      h("select", { "aria-label": "ChatGPT account", disabled: busy || signingIn, value: state.accounts.find((account) => account.active)?.clientId ?? "", onChange: (event) => selectAccount(event.target.value) },
+      h("select", { "aria-label": "ChatGPT account", disabled: busy || signingIn || quotaSigningIn, value: state.accounts.find((account) => account.active)?.clientId ?? "", onChange: (event) => selectAccount(event.target.value) },
         ...state.accounts.map((account) => h("option", { key: account.clientId, value: account.clientId }, `${account.label}${account.authenticated ? "" : " (signed out)"}`))),
-      h("button", { type: "button", disabled: busy || signingIn, onClick: () => signIn(true) }, "Add account")) : null,
+      h("button", { type: "button", disabled: busy || signingIn || quotaSigningIn, onClick: () => signIn(true) }, "Add account")) : null,
     state.authenticated && !state.planUsage && !signingIn ? h("button", { type: "button", disabled: busy, onClick: signOut }, "Sign out") : null,
     signedIn && !signingIn ? h("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
       h("span", null, "Using ChatGPT plan"),
       h("a", { href: "https://chatgpt.com/settings/usage", target: "_blank", rel: "noopener noreferrer" }, "Manage usage"),
       h("button", { type: "button", disabled: busy, onClick: refreshModels }, "Refresh models")) : null,
     signedIn ? h(QuotaPanel, { quota: state.quota }) : null,
-    state.status === "error" ? h("p", { style: { color: "var(--dsw-alias-state-error-primary)" } }, state.message) : null,
+    signedIn ? h("div", { style: { display: "flex", gap: 8 } },
+      quotaSigningIn && state.challenge ? h("button", { type: "button", disabled: busy, onClick: () => {
+        const popup = window.open("about:blank", "_blank");
+        if (!popup) { setNotice("Allow pop-ups to complete quota authorization."); return; }
+        popup.opener = null; authorization.current = { popup, url: null }; openChallenge(state.challenge, popup);
+      } }, "Continue quota authorization") : null,
+      h("button", { type: "button", disabled: busy || signingIn, onClick: quotaSigningIn ? disconnectQuota : connectQuota }, quotaSigningIn ? "Cancel quota sign-in" : state.quotaAuth?.authenticated ? "Reconnect quota" : "Connect quota"),
+      state.quotaAuth?.authenticated && !quotaSigningIn ? h("button", { type: "button", disabled: busy || signingIn, onClick: disconnectQuota }, "Disconnect quota") : null) : null,
+    state.message ? h("p", { style: { color: state.status === "error" ? "var(--dsw-alias-state-error-primary)" : undefined } }, state.message) : null,
     notice ? h("p", { role: "status" }, notice) : null,
   );
 }

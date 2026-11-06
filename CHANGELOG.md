@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1 — 2026-10-25
+
+- Show TUI Codex quota only when the active model route is `openai-codex` (`~/.dsh-tui/model.json`, with a fallback after a Codex call). Other providers no longer display Codex usage or run background quota lookups.
+
+- Connect quota through the normal CLI and Web login: reuse or refresh matching credentials, otherwise continue with quota authorization. Cancelling or failing quota authorization preserves completed native sign-in.
+
+- Manage the plugin’s independent Codex quota login with CLI and Web connect/reconnect/disconnect controls. Existing v1 credentials remain usable.
+- Refresh near-expiry companion tokens under a cross-process lock and atomically persist rotations. Retry a backend 401 once with refreshed credentials; terminal refresh failure disconnects quota without touching native inference.
+- Require a complete, unique native client-ID match in the companion app registration list before reading plan quota. Reject unsupported pagination and changed login state.
+- Bound quota response sizes, invalidate companion snapshots on query failure, and preserve native inference and the existing compact UI format.
+- Validate with automated OAuth/rotation/query boundary tests and live read-only registration and plan queries.
+
 ## 0.3.0 — 2026-10-13
 
 ### Upgrade requirements

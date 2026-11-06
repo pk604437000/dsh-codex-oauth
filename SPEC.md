@@ -9,7 +9,7 @@
 - 初次授权使用 `dynamic_agent_client`、稳定的 `ext_agent_host_id`、应用名、state、nonce 和 S256 PKCE；取得签发的 client ID 后，复用该 ID 进行同一账户的再次授权。
 - 本机 HTTP 回调只监听 `127.0.0.1`；校验 state、回调 client ID、ID token 的签名、issuer、audience、有效期和 nonce。再次授权必须保持原账户 subject。
 - 使用官方公开 Responses 资源与 `chatgpt.tokens.use.direct` scope；仅获得身份授权时显示已登录、未授权套餐，禁止推理调用。
-- 提供 `login [--new-account]`、`status`、`accounts`、`use <client-id>`、`models [--refresh]`、`logout`。不支持旧 device-code 流程。
+- 提供 `login [--new-account]`、`status`、`accounts`、`use <client-id>`、`models [--refresh]`、`logout`，正常 login 完成原生授权后自动复用或刷新额度凭据，否则顺序引导额度授权；取消或失败保留原生登录。另提供独立修复用的 `quota-login`、`quota-status`、`quota-logout`。不支持旧 device-code 流程。
 - Web 设置提供登录、取消、账户选择、退出、模型刷新和官方用量链接。所有控制路由要求本机请求与同源，返回 `no-store`；状态和挑战不含 token。
 - 取消授权不得撤销原有登录。退出登录尝试远程撤销后清除当前账户 token，保留注册与其他账户；未确认远程撤销时向用户说明。
 
@@ -43,7 +43,8 @@
 ## 额度显示
 
 - 优先解析正常响应的 `x-codex-*` 头和 `codex.rate_limits` 事件；缺少新鲜数据时用插件保留的旧 v1 Codex 凭据只读查询 WHAM，不用原生 SIWC token 查询该接口。
-- 旧凭据文件需满足私有文件权限，两套凭据邮箱匹配且 access token 未过期；不刷新、不修改、不读取其他应用的凭据。此来源与原生 SIWC 应用额度的等价关系未确认，文档说明来源限制。
+- 额度登录沿用旧 v1 文件，检查私有权限、邮箱和 accountId，临近过期自动刷新；同一跨进程锁与原子写入保存轮换后的 token。临时失败保留凭据，明确失效断开额度登录，不影响原生推理。不读取其他应用的凭据。
+- 每次查询先访问 `/backend-api/wham/usage/chatpass/apps`，完整列表必须唯一匹配原生 client ID；缺失、重复、分页或登录变化时不显示缓存额度。backend 401 最多刷新重试一次。来源仍未公开，注册匹配不是独立身份保证，文档保留限制说明。
 - 成功缓存 60 秒，失败退避 30 秒，并发共享请求；账户变化、登出和卸载阻止旧查询更新。无数据不伪造额度，过期快照标记 stale。
 - Web 显示英文额度条；TUI 摘要为 `codex 81% 4h36m 50% 5d4m`，`/codex-usage` 展开详情。不调用模型。
 - 模型/推理档位同一行的位置通过可选的本机 dsh-tui 0.14.0 补丁实现；默认公开接口仍位于输入框上方，安装不自动应用布局补丁。
