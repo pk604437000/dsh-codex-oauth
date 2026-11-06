@@ -7,12 +7,14 @@ import { registerWebAuth, AUTH_STATUS_PATH, AUTH_LOGIN_PATH, AUTH_LOGOUT_PATH, A
 import { CodexCredentialStore, OPENAI_CODEX_PROVIDER } from "../lib/store.js";
 import { createServiceTierControl } from "../lib/service-tier.js";
 const AUTH_SERVICE_TIER_PATH = "/plugins/dsh-codex-oauth/auth/service-tier";
+const SESSION_SERVICE_TIER_PATH = "/plugins/dsh-codex-oauth/auth/session-service-tier";
 
 async function fixture(t, options = {}) {
   const root = await mkdtemp(join(tmpdir(), "dsh-web-auth-"));
   const handlers = new Map();
   let cleanup;
   const ctx = {
+    get(name) { return options.services?.[name]; },
     inject(_deps, callback) { callback({ webServer: { register(route) { handlers.set(route.path, route.handler); return () => handlers.delete(route.path); } } }); },
     effect(fn) { cleanup = fn(); },
   };
@@ -25,7 +27,11 @@ async function fixture(t, options = {}) {
     await handlers.get(path)(request, { writeHead(status, headers) { result = { status, headers }; }, end(body) { result.body = body; result.value = JSON.parse(body); } });
     return result;
   }
-  return { store, call };
+  const session = (id, value) => call(SESSION_SERVICE_TIER_PATH, {
+    method: value === undefined ? "GET" : "POST",
+    url: `${SESSION_SERVICE_TIER_PATH}?session_id=${encodeURIComponent(id)}${value === undefined ? "" : `&value=${encodeURIComponent(value)}`}`,
+  });
+  return { store, call, session };
 }
 
 function tierFixture(fail = false) {
@@ -36,7 +42,7 @@ function tierFixture(fail = false) {
     if (fail) throw new Error("disk full access_token=private-access");
     raw = change(raw);
   } }) };
-  const config = { serviceTier: { get: () => raw.serviceTier } };
+  const config = { serviceTier: { get: () => raw.serviceTier }, sessionServiceTiers: { get: () => raw.sessionServiceTiers ?? {} } };
   return { control: createServiceTierControl(ctx, config), reconstruct: () => createServiceTierControl(ctx, config), writes: () => writes };
 }
 
@@ -93,6 +99,110 @@ test("Web service tier write failure preserves Standard and redacts sensitive er
   assert.match(result.value.error, /disk full/);
   assert.equal(result.body.includes("private-access"), false);
   assert.equal((await f.call(AUTH_STATUS_PATH)).value.serviceTier, "default");
+});
+
+function sessionServices() {
+  const live = new Map(["session-A", "session-B"].map((id) => [id, { id }]));
+  const cold = new Set(["cold-session"]);
+  const reads = [];
+  return {
+    live, cold, reads,
+    services: {
+      sessions: { get(id) { reads.push(["live", id]); return live.get(id); } },
+      sessionPersistence: { async stat(id) { reads.push(["stat", id]); return cold.has(id) ? { header: { id, version: 4, cwd: "/fixture", createdAt: "2026-11-06T00:00:00.000Z" }, revision: "test-revision" } : undefined; } },
+      sessionController: { resolveAgent() { throw new Error("Tier settings must not activate an Agent"); } },
+    },
+  };
+}
+
+test("session tier routes persist independent choices without changing the default or credentials", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  assert.deepEqual((await f.session("session-A")).value, { sessionId: "session-A", selection: "inherit", effectiveTier: "default", defaultTier: "default", writable: true });
+  assert.equal((await f.session("session-A", "fast")).status, 200);
+  assert.equal((await f.session("session-B", "default")).status, 200);
+  assert.equal((await f.session("session-A")).value.effectiveTier, "fast");
+  assert.equal((await f.session("session-B")).value.effectiveTier, "default");
+  assert.equal(tier.reconstruct().current("session-A"), "fast");
+  assert.equal(tier.control.current(), "default");
+  assert.equal(await f.store.readDocument(), undefined);
+});
+
+test("session inherit deletes its override and follows later defaults while another session remains pinned", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  await f.session("session-A", "default"); await f.session("session-B", "fast");
+  await tier.control.save("fast");
+  assert.equal((await f.session("session-A")).value.effectiveTier, "default");
+  const inherited = await f.session("session-A", "inherit");
+  assert.deepEqual(inherited.value, { sessionId: "session-A", selection: "inherit", effectiveTier: "fast", defaultTier: "fast", writable: true });
+  await tier.control.save("default");
+  assert.equal((await f.session("session-A")).value.effectiveTier, "default");
+  assert.equal((await f.session("session-B")).value.effectiveTier, "fast");
+});
+
+test("cold session headers validate without loading agents and unload does not remove saved choices", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  assert.equal((await f.session("cold-session", "fast")).status, 200);
+  assert.equal((await f.session("cold-session")).value.selection, "fast");
+  await f.session("session-A", "fast");
+  sessions.live.delete("session-A"); sessions.cold.add("session-A");
+  assert.equal((await f.session("session-A")).value.selection, "fast");
+  assert(sessions.reads.some(([kind, id]) => kind === "stat" && id === "cold-session"));
+});
+
+test("session tier rejects duplicate malformed identifiers and choices before any write or session lookup", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  for (const suffix of [
+    "", "?session_id=", "?session_id=session-A&session_id=session-B", "?session_id=../escape&value=fast",
+    "?session_id=session%2FA&value=fast", "?session_id=session-A%0A&value=fast", "?session_id=constructor&value=fast",
+    "?session_id=session-A", "?session_id=session-A&value=", "?session_id=session-A&value=priority",
+    "?session_id=session-A&value=fast&value=default", "?session_id=session-A&value=fast&value=fast",
+  ]) assert.equal((await f.call(SESSION_SERVICE_TIER_PATH, { url: SESSION_SERVICE_TIER_PATH + suffix })).status, 400);
+  assert.equal(tier.writes(), 0); assert.equal(sessions.reads.length, 0);
+});
+
+test("session tier denies foreign origins and methods before looking up a session", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  const url = SESSION_SERVICE_TIER_PATH + "?session_id=session-A&value=fast";
+  for (const [overrides, status] of [
+    [{ method: "PUT" }, 405], [{ method: "DELETE" }, 405],
+    [{ socket: { remoteAddress: "192.0.2.1" } }, 403],
+    [{ headers: { host: "foreign.example", origin: "http://foreign.example" } }, 403],
+    [{ headers: { host: "127.0.0.1:3080", origin: "http://foreign.example" } }, 403],
+    [{ headers: { host: "127.0.0.1:3080", "sec-fetch-site": "cross-site" } }, 403],
+  ]) assert.equal((await f.call(SESSION_SERVICE_TIER_PATH, { url, ...overrides })).status, status);
+  assert.equal(tier.writes(), 0); assert.equal(sessions.reads.length, 0);
+});
+
+test("unknown and mismatched sessions are not created and missing capabilities are explicit", async (t) => {
+  const tier = tierFixture(), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  assert.equal((await f.session("unknown-session", "fast")).status, 404);
+  sessions.services.sessionPersistence.stat = async () => ({ header: { id: "another-session" }, revision: "other" });
+  assert.equal((await f.session("cold-session", "fast")).status, 404);
+  assert.equal(tier.writes(), 0);
+  const absent = await fixture(t, { serviceTier: tier.control });
+  assert.equal((await absent.session("session-A")).status, 503);
+  const readonly = await fixture(t, { services: sessionServices().services });
+  assert.equal((await readonly.session("session-A")).value.writable, false);
+  assert.equal((await readonly.session("session-A", "fast")).status, 503);
+});
+
+test("session storage failures retain prior choices and conceal underlying sensitive details", async (t) => {
+  const tier = tierFixture(true), sessions = sessionServices();
+  const f = await fixture(t, { serviceTier: tier.control, services: sessions.services });
+  const failed = await f.session("session-A", "fast");
+  assert.equal(failed.status, 500);
+  assert.doesNotMatch(failed.body, /private-access|disk full|access_token/);
+  assert.equal((await f.session("session-A")).value.selection, "inherit");
+  sessions.services.sessionPersistence.stat = async () => { throw new Error("storage access_token=private-access"); };
+  const readFailure = await f.session("cold-session");
+  assert.equal(readFailure.status, 500);
+  assert.doesNotMatch(readFailure.body, /private-access|access_token/);
 });
 
 const credential = (clientId) => ({ clientId, subject: `subject-${clientId}`, issuer: "https://auth.openai.com", access: "private-access", refresh: "private-refresh", idToken: "private-id-token", expires: Date.now() + 3600000, scopes: ["chatgpt.tokens.use.direct"] });
