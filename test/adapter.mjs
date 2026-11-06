@@ -7,6 +7,7 @@ import { Context } from "@deepseek-ai/cordis";
 import { BasicCompactionEngine } from "@deepseek-ai/dsh-compaction-basic";
 import { BlockAssembler, LlmRuntime, attributionHeaders } from "@deepseek-ai/dsh-llm";
 import { createCodexAdapter } from "../lib/adapter.js";
+import { createServiceTierControl } from "../lib/service-tier.js";
 import { CodexCredentialStore, OPENAI_CODEX_PROVIDER } from "../lib/store.js";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
@@ -80,6 +81,29 @@ async function fixture(t, attachments, adapterOptions = {}) {
   return mock;
 }
 async function collect(iterable) { const chunks = []; for await (const chunk of iterable) chunks.push(chunk); return chunks; }
+
+test("concurrent sessions select independent wire tiers from their own identities", async (t) => {
+  const control = createServiceTierControl({}, { serviceTier: "default", sessionServiceTiers: { "session-A": "fast", "session-B": "default" } });
+  const reads = [];
+  const mock = await fixture(t, undefined, { getServiceTier(id) { reads.push(id); return control.current(id); } });
+  await Promise.all(["session-A", "session-B"].map((sessionId) => collect(mock.adapter.stream({ ...mock.options, sessionId }))));
+  assert.deepEqual(Object.fromEntries(mock.requestHeaders.map((headers, index) => [headers.get("session-id"), mock.requests[index].service_tier])), { "session-A": "priority", "session-B": "default" });
+  assert.deepEqual(reads.sort(), ["session-A", "session-B"]);
+});
+
+test("follow-ups and compaction keep their session tiers while calls without identity use the default", async (t) => {
+  const control = createServiceTierControl({}, { serviceTier: "default", sessionServiceTiers: { "session-A": "fast", "session-B": "default" } });
+  const mock = await fixture(t, undefined, { getServiceTier: (id) => control.current(id) });
+  for (const extra of [
+    { sessionId: "session-A" },
+    { sessionId: "session-B", purpose: "compaction", maxTokens: 1234 },
+    { sessionId: "session-A", purpose: "compaction", maxTokens: 1234 },
+    { sessionId: "session-A" },
+    {},
+  ]) await collect(mock.adapter.stream({ ...mock.options, ...extra }));
+  assert.deepEqual(mock.requests.map((body) => body.service_tier), ["priority", "default", "priority", "priority", "default"]);
+  assert.equal(mock.requestHeaders.at(-1).has("session-id"), false);
+});
 
 test("ChatGPT plan Fast uses priority instead of the rejected fast wire value", async (t) => {
   const mock = await fixture(t, undefined, { getServiceTier: () => "fast" });
@@ -319,7 +343,7 @@ test("unsupported request options fail before inference, and system instructions
 });
 
 test("DSH's compaction summarizer accepts its automatic output budget without sending unsupported API fields", async (t) => {
-  const mock = await fixture(t);
+  const mock = await fixture(t, undefined, { getServiceTier: (id) => id === "compaction-regression" ? "fast" : "default" });
   const ctx = new Context();
   t.after(() => ctx.fiber.dispose());
   await ctx.plugin(LlmRuntime);
@@ -337,6 +361,8 @@ test("DSH's compaction summarizer accepts its automatic output budget without se
   assert.equal(result.llmStreamCall, true);
   assert.equal(mock.requests.length, 2);
   const compact = mock.requests[1];
+  assert.equal(ordinary.service_tier, "priority");
+  assert.equal(compact.service_tier, "priority");
   assert.equal(compact.instructions, ordinary.instructions);
   assert.deepEqual(compact.tools, ordinary.tools);
   assert.deepEqual(compact.input.slice(0, ordinary.input.length), ordinary.input);
