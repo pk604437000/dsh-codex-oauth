@@ -1,0 +1,22 @@
+{
+  "gui": "http://127.0.0.1:3080",
+  "realInferenceRequests": 0,
+  "stages": [
+    "current URL serves installed client payload and expected Host source-map trailer",
+    "actual browser session A Fast persisted; B unchanged",
+    "actual browser session B Standard persisted; A stayed Fast",
+    "real page refresh reloads both choices from server"
+  ],
+  "screenshots": [
+    "session-A-fast.png",
+    "session-B-standard.png"
+  ],
+  "defaultTier": "default",
+  "clientRevision": "a58f11e3f726",
+  "localPresentationOverlaysHidden": 2,
+  "ownedTestSessionsArchived": 4,
+  "consoleExceptions": [],
+  "consoleExceptionCount": 0,
+  "passed": true,
+  "testOverridesRestored": true
+}

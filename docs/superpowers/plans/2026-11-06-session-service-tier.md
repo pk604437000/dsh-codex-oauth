@@ -71,7 +71,7 @@
 **Files:** README.md, README.zh.md, SPEC.md, CHANGELOG.md, package.json/package-lock.json；新增 docs/verification 会话级记录。
 
 **Consumes:** Tasks 1–3 的实现与测试。
-**Produces:** 0.3.3-fast.0 安装包、已安装当前 web profile、已验证远端功能分支与可见资源。
+**Produces:** 0.3.3-fast.1 安装包、已安装当前 web profile、已验证远端功能分支与可见资源（原 fast.0 候选在真实 GUI 暴露 namespace 声明缺项，修复后采用新补丁身份）。
 
 - [ ] **Step 1:** 文档说明优先级、默认/继承、并发与重启、分叉/子会话独立、profile-local 状态不随日志导出，以及 Fast 请求不保证上游兑现。更新版本，运行 npm test / npm run build / diff --check，审核安装包白名单、权限与无凭据。
 - [ ] **Step 2:** 一名独立 reviewer 对计划基线至当前整个分支做最终审查；修正全部 Critical/Important 并用新增失败测试覆盖，不增加重复审查循环。

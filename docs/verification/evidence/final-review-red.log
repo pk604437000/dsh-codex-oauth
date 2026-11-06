@@ -1,0 +1,46 @@
+✖ default invalidation during a pending session response is replayed after success (128.676295ms)
+✖ failed session response replays a pending default change without hiding the write error (26.309387ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 577.891917
+
+✖ failing tests:
+
+test at test/session-client.mjs:149:1
+✖ default invalidation during a pending session response is replayed after success (128.676295ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Fast/. Input:
+  
+  'Inherit default (Standard)'
+  
+      at TestContext.<anonymous> (file:///data/project/dsh-codex-oauth/test/session-client.mjs:157:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Inherit default (Standard)',
+    expected: /Fast/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test/session-client.mjs:161:1
+✖ failed session response replays a pending default change without hiding the write error (26.309387ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Fast/. Input:
+  
+  'Inherit default (Standard)'
+  
+      at TestContext.<anonymous> (file:///data/project/dsh-codex-oauth/test/session-client.mjs:169:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Inherit default (Standard)',
+    expected: /Fast/,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -1,0 +1,25 @@
+✖ session slot supplies the remote namespace required to create a model directory (93.599937ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 611.243712
+
+✖ failing tests:
+
+test at test/session-client.mjs:111:1
+✖ session slot supplies the remote namespace required to create a model directory (93.599937ms)
+  Error: cannot get property "remote.session" without inject
+      at Object.directoryFor (file:///data/project/dsh-codex-oauth/test/session-client.mjs:71:51)
+      at Object.inject (evalmachine.<anonymous>:452:62)
+      at file:///data/project/dsh-codex-oauth/test/session-client.mjs:89:34
+      at Array.map (<anonymous>)
+      at file:///data/project/dsh-codex-oauth/test/session-client.mjs:88:12
+      at process.env.NODE_ENV.exports.act (/data/project/dsh-codex-oauth/node_modules/react/cjs/react.development.js:890:22)
+      at view (file:///data/project/dsh-codex-oauth/test/session-client.mjs:86:75)
+      at fixture (file:///data/project/dsh-codex-oauth/test/session-client.mjs:95:9)
+      at async TestContext.<anonymous> (file:///data/project/dsh-codex-oauth/test/session-client.mjs:112:13)
+      at async Test.run (node:internal/test_runner/test:1409:7)
